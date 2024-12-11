@@ -1,0 +1,826 @@
+# Import all dependencies
+import pandas as pd
+import numpy as np
+import pymongo
+import sys
+import os
+from datetime import datetime
+
+from rdkit import Chem
+
+import pymongo
+
+
+# Set access variables for all necessary folders. Folder structure should mimic code. 
+raw_dir =  'data/raw/'
+interim_dir = 'data/interim/'
+external_dir = 'data/external/'
+figures_dir = 'reports/figures/'
+
+# Open the XML file in read mode
+with open(raw_dir + 'epa_categories.xml','r', encoding = 'utf8') as f:
+    xml=f.read()
+
+# Collapse all XML to a single line (for ease of reading?)
+xml=xml.replace('\n','')
+
+# Parse the XML as a tree
+import xml.etree.ElementTree as ET
+e=ET.parse(raw_dir+'epa_categories.xml').getroot()
+
+# Map children to parents in a dictionary, so that upper elements of the tree can 
+# be called by lower elements. This is a many to one mapping. 
+parent_map = {c:p for p in e.iter() for c in p}
+
+# Dictionaries converting operator words to mathematical operators and standardizing
+# the wording of property names
+import operator as op
+op_dict={
+    'GreaterThan': op.gt,
+    'GreaterThanOrEqualTo': op.ge,
+    'LessThan': op.lt,
+    'LessThanOrEqualTo': op.le
+}
+prop_dict={
+    'log Kow':'logp',
+    'Molecular Weight':'mol_weight',
+    'Molecular weight':'mol_weight',
+    'Water Solubility': 'ws'
+}
+
+
+def define_smart_match(smart):
+    """A function that takes in a SMART pattern and outputs a function that identifies whether an input chemical contains that pattern"""
+    pattern=Chem.MolFromSmarts(smart)
+    if not pattern:
+        return None
+    def smart_match(x):
+        mol=x['mol']
+        ret=True if mol.GetSubstructMatches(pattern) else False
+        return ret
+    return smart_match
+
+
+def define_compare(prop,operand,value):
+    """A function that takes in a property, operand, and comparative value and outputs a function to determine whether the given property for an input chemical obeys the inequality or equality"""
+    def compare(x):
+        ret = op_dict[operand](x[prop_dict[prop]],value)
+        return ret
+    return compare
+
+# I moved these because I think dependencies should be called before they appear to take advantage
+# of the Python interpreter
+import re
+import ast
+
+
+# Defining the Query class, on which the following functions can be run
+class Query:
+    
+    # Objects in the Query class will have xml, id, logic, subqueries, and category properties, but
+    # only the xml (Any Type) is required to create an instance. Some of these will be reset by
+    # calling class functions on the instance. 
+    def __init__(self,xml,qid=None):
+        """ Inputs:
+        - xml: The object on which to build an instance of the Class 
+        - qid: The numerical ID assigned to the given query, will be set later to match source XML
+            \n
+        Properties: \n
+        - logic: The logic relating the query to other queries
+        - subqueries: Queries required to satisfy the query
+        - category: The chemical category for which this instance is a query"""
+        self.xml=xml
+        self.id=qid
+        self.logic=None
+        self.subqueries=[]
+
+
+    def write_query(self,qtype:str,tree:dict ):
+        """This function creates queries for a Class instance, with inputs of a Query Type (qtype) and 
+        a tree. The tree input will be used for logical relations between queries to establish how 
+        queries and subqueries relate."""
+        # Set the instance type to qtype
+        self.type=qtype
+
+        # Check whether the query type is Structural, a Parameter/Property query, or a Logical query
+        if qtype=='b:StructureQuery':
+            # Pull out the text for the query
+            qstring=self.xml.find('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Queries}ComplexSearch').text
+            
+            # Replace boolean strings with their Python-compatible versions
+            qstring=re.sub('false','False',qstring)
+            qstring=re.sub('true','True',qstring)
+            
+            # Interpret the string as Python, save a dictionary of the query pieces
+            qdict=ast.literal_eval(qstring)
+
+            # Save the SMART as a variable and set this for the class instance
+            smart=qdict['queries'][0]['smart']
+            self.smart=smart
+
+            # [Ch3,#1] appears to imply multiple pieces of the SMART that can be matched, so 
+            if '[Ch3,#1]' in self.smart:
+                split=re.search(r'(.*)\[([^\(\)]*),([^\(\)].*)\]$',self.smart)
+                split1=split.group(1)
+                split2=split.group(1)+'['+split.group(2)+']'
+                smart_match1=define_smart_match(split1)
+                smart_match2=define_smart_match(split2)
+                def smart_match(x):
+                    """Given an input chemical, does the chemical contain either of SMART split 1 or 2?"""
+                    return any([smart_match1(x),smart_match2(x)])
+            # Without the Ch3, #1 piece just make a function to match the SMART
+            else:
+                smart_match=define_smart_match(smart)
+
+            # Set the query for the instance to matching the SMART 
+            self.query=smart_match
+
+
+        
+        elif qtype=='b:ParameterQuery':
+            # Find the operand, property, and value for define_compare
+            self.operand=self.xml.find('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Queries}Operand').text
+            self.prop=self.xml.find('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Queries}ParameterName').text
+            self.value=float(self.xml.find('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Queries}Value').text)
+            
+            #Create the function needed to apply this query to a chemical
+            compare=define_compare(self.prop,self.operand,self.value)
+
+            #Set the query for the instance to checking the property constraints
+            self.query=compare
+
+
+        elif qtype=='LogicalQuery':
+
+            # These capture the logical connectives between other queries, such as "this property AND that property"
+            self.logic=self.xml.find('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Engine}Logic').text
+            elements=self.xml.find('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Engine}Elements')
+            node_ids=[elem.attrib['{http://schemas.microsoft.com/2003/10/Serialization/}Ref']\
+                      for elem in elements.findall('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Engine}Query')\
+                      if '{http://schemas.microsoft.com/2003/10/Serialization/}Ref' in elem.attrib]
+            # Set the query for the instance to checking that the desired property is NOT true
+            if self.logic=='Not':
+                node_id=node_ids[0] #Should only be one
+                sq=tree[node_id]
+                self.subqueries=[sq]
+                def func(x):
+                    return not(sq.query(x))
+                self.query=func
+            # Set the query for the instance to checking that all desired properties are true
+            elif self.logic=='And':
+                sqs=[tree[node_id] for node_id in node_ids]
+                self.subqueries=sqs
+                def func(x):
+                    return all([sq.query(x) for sq in self.subqueries])
+                self.query=func
+            #Set the query for the instance to checking that some property in an OR list is true
+            else:
+                sqs=[tree[node_id] for node_id in node_ids]
+                self.subqueries=sqs
+                for orquery in elements.findall('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Engine}Query'):
+                    if '{http://www.w3.org/2001/XMLSchema-instance}type' in orquery.attrib:
+                        extra_sq=Query(orquery)
+                        extra_sq.write_query('b:StructureQuery',tree)
+                        sqs.append(extra_sq)      
+                def func(x):
+                    return any([sq.query(x) for sq in self.subqueries])
+                self.query=func
+    
+    def print_tree(self,x,tabs=0):
+        """ Given a Class instance and chemical, output the results of applying each query to the chemical
+        to the console. For queries with subqueries, the subqueries will be disaplayed below the query in 
+        indented lists. Can also be used to view query conditions without a chemical input."""
+        qinfo=(self.id,self.type)
+        if self.type=='b:StructureQuery':
+            qinfo=qinfo+(self.smart,)
+        elif self.type=='b:ParameterQuery':
+            qinfo=qinfo+(self.prop,self.value,self.operand)
+        elif self.type=='LogicalQuery':
+            qinfo=qinfo+(self.logic,)
+        try:
+            qinfo=qinfo+(self.query(x),)
+        except:
+            qinfo=qinfo+('does not process',)
+        print('\t'*tabs+str(qinfo))
+        for sq in self.subqueries:
+            sq.print_tree(x,tabs+1)
+    
+    
+
+all_tests={}
+print_tests = {}
+bad_smarts=set()
+bad_cats=set()
+
+# This iterates through the XML until it finds a chemical category. Then, for each category, it identifies
+#all relevant queries and the contents of those queries.
+for elem in e.iter('{http://schemas.microsoft.com/2003/10/Serialization/Arrays}anyType'):
+    category=elem.find('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Engine}Caption').text
+    queries=elem.find('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Engine}Expression')\
+        .find('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Engine}Queries')\
+        .findall('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Engine}Query')
+    contents=[query.find('{http://schemas.datacontract.org/2004/07/LMC.Profiling.Engine}Content') for query in queries]
+    #print(query)
+    query_tree={}
+
+    # For each query required by a category... 
+    for query in contents:
+        attributes=query.attrib
+        if '{http://schemas.microsoft.com/2003/10/Serialization/}Id' not in attributes:
+            continue
+
+        # Find the qid
+        query_id=attributes['{http://schemas.microsoft.com/2003/10/Serialization/}Id']
+
+        # Find the query_type
+        query_type=attributes['{http://www.w3.org/2001/XMLSchema-instance}type']
+
+        # Establish a Query instance for the query using its qid
+        q=Query(query,query_id)
+
+        # Set the category according to the chemical category this query comes from
+        q.category=category
+
+        # Create the query function for this query and print the entire tree related to the query (if it is a 
+        # related to a logical query)
+        try:
+            q.write_query(query_type,query_tree)
+        except:
+            pass
+        # q.query should be a function defining the query if nothing failed, thus if this variable is
+        # empty, the category has a problematic query in it. Output the category as a problematic category
+        # needing further attention 
+        if not q.query or not all([sq.query for sq in q.subqueries]): #Smarts did not compile, sqs needed bc of hidden sqs in or queries
+            bad_cats.add(category)
+
+            # In addition, if the query causing the issue was structural, something went wrong in the SMARTS.
+            # Store the SMARTs as one that should be looked at. 
+            if q.type=='b:StructureQuery':
+                bad_smarts.add(q.smart)
+        # Store the query in the query tree so that the tree can be built for the entire category   
+        query_tree[query_id]=q
+    # Store all queries for this category as a tree. The last query called will be the topmost level
+    # of the tree, so only that id needs to be preserved     
+    all_tests[category]=query_tree[query_id]
+    # Store the query id and query type in a dictionary for quick test viewing later
+    print_tests[category] = [query_id, query_type]#Final one should always be the top level query hopefully
+
+#The next section contains the hard-coded tests fixed by George
+new_tests={}
+
+#Aliphatic amines
+def create_test():
+    primamine=Chem.MolFromSmarts('[NX3;H2;!$(NC=[O,N,S]);!$(NCN)][CX3]')
+    secamine=Chem.MolFromSmarts('[NX3;H1;!$(NC=[O,N,S]);!$(NCN)](C)[CX3]')
+    tertamine=Chem.MolFromSmarts('[N;!$(NC=[O,N,S]);!$(NCN)](C)(C)[CX3]')
+    def test(x):
+        mol=x['mol']
+        smiles=x['smiles']
+        mw=x['mol_weight']
+        return 'c' not in smiles and mw<1000 and '1' not in smiles and (mol.HasSubstructMatch(primamine) or mol.HasSubstructMatch(secamine)\
+        or mol.HasSubstructMatch(tertamine)) 
+    return test
+new_tests['Aliphatic Amines']=create_test()
+
+#Alkoxysilanes
+def create_test():
+    alkoxy=Chem.MolFromSmarts('[CX4]O[SiX4]')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        return mw<1000 and mol.HasSubstructMatch(alkoxy)
+    return test
+new_tests['Alkoxysilanes']=create_test()
+
+#Aminobenzothiazole Azo Dyes
+def create_test():
+    azodye=Chem.MolFromSmiles('N=NC1=NC2=C(S1)C=CC=C2')
+    def test(x):
+        mol=x['mol'] 
+        return mol.HasSubstructMatch(azodye)
+    return test
+new_tests['Aminobenzothiazole Azo Dyes']=create_test()
+
+#Anionic Surfactants
+def create_test():
+    sulfate=Chem.MolFromSmarts('COS(=O)(=O)[OH,O-]')
+    sulfonate=Chem.MolFromSmarts('CS(=O)(=O)[OH,O-]')
+    phosphate=Chem.MolFromSmarts('COP([OH1])([OH1])=O')
+    carboxylic=Chem.MolFromSmarts('[CX3;!$(Cc)](=O)[OX2H1]')
+    silicic=Chem.MolFromSmarts('[Si][OX2H]')
+    def test(x):
+        mol=x['mol']
+        smiles=x['smiles']
+        if set(smiles)-set(['C','c','O','P','S','i','[',']','(',')','=']):
+            return False
+        m=re.compile(r'\(.?C.?\)')
+        if m.findall(smiles):
+            return False
+        rgroup_indexes=[i for i,atom in enumerate(smiles) if atom=='C']
+        return (mol.HasSubstructMatch(sulfate) or mol.HasSubstructMatch(sulfonate)\
+        or mol.HasSubstructMatch(phosphate) or mol.HasSubstructMatch(carboxylic)\
+        or mol.HasSubstructMatch(silicic))\
+        and sorted(rgroup_indexes)==range(min(rgroup_indexes),max(rgroup_indexes)+1) #Tests for straight alkyl chains
+    return test
+new_tests['Anionic Surfactants']=create_test()
+
+#Benzotriazoles
+def create_test():
+    benzotriazole=Chem.MolFromSmarts('n1c2ccccc2nn1')
+    def test(x):
+        mol=x['mol']
+        return mol.HasSubstructMatch(benzotriazole)
+    return test
+new_tests['Benzotriazoles']=create_test()
+
+#Dianilines
+def create_test():
+    dianiline=Chem.MolFromSmarts('c1cc([NH2])ccc1[CH2,O,N,S]c1ccccc1')
+    not_dianiline1=Chem.MolFromSmarts('c1ccccc1[A]~[A]')
+    not_dianiline2=Chem.MolFromSmarts('c1ccccc1[A](c)c')
+    def test(x):
+        mol=x['mol']
+        return not mol.HasSubstructMatch(not_dianiline1) and not mol.HasSubstructMatch(not_dianiline2)\
+        and len(mol.GetSubstructMatches(dianiline))==2 #lol
+    return test
+new_tests['Dianilines']=create_test()
+
+#Dithiocarbonates 
+def create_test():
+    ethylenebisdithiocarbamate=Chem.MolFromSmiles('SC(=S)NCCNC(=S)S')
+    dithiocarbamates=[]
+    for i in range(1,5):
+        for j in range(1,5):
+            mol=Chem.MolFromSmiles('C'*i + 'NC(=S)S' + 'C'*j)
+            dithiocarbamates.append(mol)
+    dithiocarbamates.append(ethylenebisdithiocarbamate)
+    def test(x):
+        mol=x['mol']
+        return x['mol_weight']<1000 and x['logp']<5 and any([mol.HasSubstructMatch(dithiocarbamate) for dithiocarbamate in dithiocarbamates])
+    return test
+new_tests['Dithiocarbamates (Acute toxicity)']=create_test()
+def create_test():
+    ethylenebisdithiocarbamate=Chem.MolFromSmiles('SC(=S)NCCNC(=S)S')
+    dithiocarbamates=[]
+    for i in range(1,5):
+        for j in range(1,5):
+            mol=Chem.MolFromSmiles('C'*i + 'NC(=S)S' + 'C'*j)
+            dithiocarbamates.append(mol)
+    dithiocarbamates.append(ethylenebisdithiocarbamate)
+    def test(x):
+        mol=x['mol']
+        return x['mol_weight']<1000 and x['logp']>=5 and x['logp']<19 and any([mol.HasSubstructMatch(dithiocarbamate) for dithiocarbamate in dithiocarbamates])
+    return test
+new_tests['Dithiocarbamates (Chronic toxicity)']=create_test()
+
+#Ethylene Glycol Ethers
+#Have to enumerate       
+def create_test():
+    match_mols=[]
+    for i in range(1,8):
+        for j in range(0,8):
+            for k in range(1,4):
+                smart='C'*i+'OCC'*k+'O'+'C'*j
+                match_mols.append(Chem.MolFromSmiles(smart))
+    phenyl_mols=[]
+    for i in range(0,7):
+        for k in range(1,3):
+            for l in range(0,3): #Technically could be any number but this is difficult to implement
+                phenyl_smart='c1ccccc1'+'C'*l+'OCC'*k+'O'+'C'*i
+                phenyl_mols.append(Chem.MolFromSmiles(phenyl_smart))
+    
+    def test(x):
+        smiles=x['smiles']
+        if set(smiles)-set(['C','c','O','1','(',')']):
+            return False
+        if smiles.count('O')<2:
+            return False
+        os=[i for i,o in enumerate(smiles) if o=='O']
+        between_os=[smiles[(start+1):end] for start,end in zip(os,os[1:])]
+        if any([between!='CC' for between in between_os]):
+            return False
+        m=re.compile('1.*O.*1')
+        if m.findall(smiles):
+            return False
+        carbon1=smiles[0:min(os)]
+        carbon2=smiles[(max(os)+1):]
+        if carbon1.count('C')>7 or carbon2.count('C')>7:
+            return False
+        if carbon1.count('c')>6 or carbon2.count('c')>6:
+            return False
+        if not carbon1 and not carbon2:
+            return False
+        else:
+            return True
+    return test
+new_tests['Ethylene Glycol Ethers']=create_test()
+
+#Neutral Organics
+#Verhaar scheme, see paper called Classifying Environmental Pollutants
+def create_test():
+    def test(x):
+        mol=x['mol']
+        if mol.HasSubstructMatch(Chem.MolFromSmarts('[!C;!c;!N;!O;!F;!Cl;!Br,I]')): #Rule 0.1 and 1.1
+            return False
+        logp=x['logp']
+        if logp>8:
+            return False
+        mw=x['mol_weight']
+        if mw>1000:
+            return False
+        if not mol.HasSubstructMatch(Chem.MolFromSmarts('[!C;!c]')): #Rule 1.3
+            return True
+        elif not mol.HasSubstructMatch(Chem.MolFromSmarts('[!C;!c;!Cl;!Br;!F]'))\
+        and not mol.HasSubstructMatch(Chem.MolFromSmarts('[Cl,Br,F]C[$(C=C),$(Cc)]')): #Rule 1.4
+            return True
+        elif not mol.HasSubstructMatch(Chem.MolFromSmarts('[!C;!c;!O;!Cl;!Br;!F]')): #Rule 1.5
+            if mol.HasSubstructMatch(Chem.MolFromSmarts('COC'))\
+            and not mol.HasSubstructMatch(Chem.MolFromSmarts('COOC'))\
+            and not mol.HasSubstructMatch(Chem.MolFromSmarts('C1OC1')): #Rule 1.5.1 and 1.7
+                return True
+            elif mol.HasSubstructMatch(Chem.MolFromSmarts('[C;!$(C=O)][OH]'))\
+            and not mol.HasSubstructMatch(Chem.MolFromSmarts('C=CCO'))\
+            and not mol.HasSubstructMatch(Chem.MolFromSmarts('C#CCO'))\
+            and not mol.HasSubstructMatch(Chem.MolFromSmarts('cCO')): #Rule 1.5.2, 1.5.3, and 1.7CCCCOCCOCCO
+                return True
+            elif mol.HasSubstructMatch(Chem.MolFromSmarts('[C;!$(CO)]=O'))\
+            and not mol.HasSubstructMatch(Chem.MolFromSmarts('[$(cC),$(C=C)]C=O'))\
+            and not mol.HasSubstructMatch(Chem.MolFromSmarts('[Cl,Br]C=O'))\
+            and not mol.HasSubstructMatch(Chem.MolFromSmarts('[Cl,Br]CC=O')): #Rule 1.5.4 and 1.7
+                return True
+            else:
+                return False
+        elif not mol.HasSubstructMatch(Chem.MolFromSmarts('[!C;!N]'))\
+        and mol.HasSubstructMatch(Chem.MolFromSmarts('C[NH,NH0]')): #Rule 1.6
+            return True
+        else: 
+            return False
+    return test
+new_tests['Neutral Organics']=create_test()
+
+#Nonionic Surfactants
+# nonsurf1=Chem.MolFromSmarts('COCCO')
+# nonsurf2=Chem.MolFromSmarts('COCCOC')
+# def test(x):
+#     mol=x['mol']
+#     return mol.HasSubstructMatch(nonsurf1) or mol.HasSubstructMatch(nonsurf2)
+import re
+def test(x):
+    smiles=x['smiles']
+    if '(' in smiles:
+        return False
+    split_smiles=smiles.split('O')
+    if len(split_smiles)==1:
+        return False
+    mol=x['mol']
+    if not mol.HasSubstructMatch(Chem.MolFromSmiles('COC')) or mol.HasSubstructMatch(Chem.MolFromSmiles('C=O')):
+        return False
+    return not any([re.search(r'[^C]',c) for c in split_smiles])
+new_tests['Nonionic Surfactants']=test
+
+#Nonionic Surfactants
+import math
+def create_test():
+    def test(x):
+        mol=x['mol']
+        atoms=[a for a in x['smiles'].lower() if a.isalpha()]
+        if set(atoms)-set(['c','o']):
+            return False
+        return mol.HasSubstructMatch(Chem.MolFromSmarts('[CH3][CR0][CR0][CR0][CR0][CR0]')) and\
+        atoms.count('o')>1 and\
+        (math.floor(len(mol.GetSubstructMatches(Chem.MolFromSmarts('O[CH2][CH2]')))/2)+1)==len(mol.GetSubstructMatches(Chem.MolFromSmarts('[O]')))
+    return test
+new_tests['Nonionic Surfactants']=create_test()
+
+#Organotins (Acute toxicity) and Organotins (Chronic toxicity)
+
+def create_test():
+    organotin=Chem.MolFromSmarts('C[Sn]') 
+    def test(x):
+        mol=x['mol']
+        return x['mol_weight']<1000 and mol.HasSubstructMatch(organotin) and x['logp']<=13.7
+    return test
+new_tests['Organotins (Acute toxicity)']=create_test()
+def create_test():
+    organotin=Chem.MolFromSmarts('C[Sn]') 
+    def test(x):
+        mol=x['mol']
+        return x['mol_weight']<1000 and mol.HasSubstructMatch(organotin) and x['logp']>=13.7
+    return test
+new_tests['Organotins (Chronic toxicity)']=create_test()
+
+#Polynitroaromatics (Acute toxicity) and Polynitroaromatics (Chronic toxicity)
+#MW < 1000
+
+def create_test():
+    polynitroaromatic=Chem.MolFromSmarts('ON(=O)[$(c1c(N(O)=O)cccc1),$(c1cc(N(O)=O)ccc1),$(c1ccc(N(O)=O)cc1),$(c1cncc(N(O)=O)c1)]')
+    def test(x):
+        mol=x['mol']
+        return x['mol_weight']<1000 and mol.HasSubstructMatch(polynitroaromatic) and x['logp']<7
+    return test
+new_tests['Polynitroaromatics (Acute toxicity)']=create_test()
+def create_test():
+    polynitroaromatic=Chem.MolFromSmarts('N[$(c1c(N)cccc1),$(c1cc(N)ccc1),$(c1ccc(N)cc1),$(c1cncc(N)c1)]')
+    def test(x):
+        mol=x['mol']
+        return x['mol_weight']<1000 and mol.HasSubstructMatch(polynitroaromatic) and x['logp']>=10
+    return test
+new_tests['Polynitroaromatics (Chronic toxicity)']=create_test()
+
+#Substituted Triazines (Acute toxicity) and Substituted Triazines (Chronic toxicity)
+#logp<5
+#MW<1000
+def create_test():
+    subtriazine=Chem.MolFromSmarts('[$(n1nnccc1.[!#1]),$(n1ncncc1.[!#1]),$(n1cncnc1.[!#1])]')#[!H] did not work as expected with aromatics
+    def test(x):
+        mol=x['mol']
+        return x['mol_weight']<1000 and mol.HasSubstructMatch(subtriazine) and x['logp']<5
+    return test
+new_tests['Substituted Triazines (Acute toxicity)']=create_test()
+def create_test():
+    subtriazine=Chem.MolFromSmarts('[$(n1nnccc1.[!#1]),$(n1ncncc1.[!#1]),$(n1cncnc1.[!#1])]')#[!H] did not work as expected with aromatics
+    def test(x):
+        mol=x['mol']
+        return x['mol_weight']<1000 and mol.HasSubstructMatch(subtriazine) and x['logp']>5 and x['logp']<=8
+    return test
+new_tests['Substituted Triazines (Chronic toxicity)']=create_test()
+
+def convert_ppb(x): #OPERA results stored as mol/L
+    ws=x['ws']
+    mol_weight=x['mol_weight']
+    return ws*mol_weight*10**6
+
+#Triarylmethane Pigments/Dyes with Non-solubilizing Groups
+def create_test():
+    para_permutations='[NH2,O,$([NH1][CH3]),$([NH1][CH2][CH3]),$(N([CH3])[CH3]),$(N([CH3])[CH2][CH3]),$(N([CH2][CH3])[CH2][CH3])]'
+    triphenylmethane=Chem.MolFromSmarts('[cH]1[cH]c({})[cH][cH]c1C(c2[cH][cH]c({})[cH][cH]2)=C3[CH]=[CH]C(=[NH,O])[CH]=[CH]3'.format(para_permutations,para_permutations))
+    diphenylnaphthylmethane=Chem.MolFromSmarts('[cH]1[cH]c({})[cH][cH]c1C(c2[cH][cH]c({})[cH]3[cH][cH][cH][cH][cH]32)=C3[CH]=[CH]C(=[NH,O])[CH]=[CH]3'.format(para_permutations,para_permutations))
+    def test(x):
+        mol=x['mol']
+        return convert_ppb(x)>1 and (mol.HasSubstructMatch(triphenylmethane) or (mol.HasSubstructMatch(diphenylnaphthylmethane)))
+    return test
+new_tests['Triarylmethane Pigments/Dyes with Non-solubilizing Groups']=create_test()
+
+#beta-Naphthylamines, Sulfonated
+def create_test():
+    smarts=[]
+    match_mols=[]
+    prefix='[NH2]c1[cH1,$(cO)]'
+    suffix='[cH][cH]1'
+    for c1 in range(1,4):
+        for c2 in range(c1+1,5):
+            smarts.append(prefix+'c2'+'[cH]'*(c1-1)+'[cH,$(c[OH]),$(c[NH2])]'+'[cH]'*(c2-c1-1)+'c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])'+'[cH]'*(4-c2)+'c2'+suffix)
+            smarts.append(prefix+'c2'+'[cH]'*(c1-1)+'c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])'+'[cH]'*(c2-c1-1)+'[cH1,$(c[OH]),$(c[NH2])]'+'[cH]'*(4-c2)+'c2'+suffix)
+    match_mols=[Chem.MolFromSmarts(smart) for smart in smarts]
+    def test(x):
+        mol=x['mol']
+        naph_matches=[True for match in match_mols[:] if mol.HasSubstructMatch(match) and match.HasSubstructMatch(mol)]
+        return any(naph_matches)
+    return test
+new_tests['beta-Naphthylamines, Sulfonated']=create_test()
+
+#Aldehydes
+#Turns out these are just wrong in the toolbox, although does compile
+def create_test():
+    formaldehyde=Chem.MolFromSmarts('[CH2](=O)') #Needs to be special case because buggy way RDKit handles hydrogens
+    aldehyde=Chem.MolFromSmarts('[CH1](=[O])[C,c]')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        logp=x['logp']
+        return (mol.HasSubstructMatch(formaldehyde) or mol.HasSubstructMatch(aldehyde)) and mw<1000 and logp<=6
+    return test
+new_tests['Aldehydes (Acute toxicity)']=create_test()
+def create_test():
+    formaldehyde=Chem.MolFromSmarts('[CH2](=O)') #Needs to be special case because buggy way RDKit handles hydrogens
+    aldehyde=Chem.MolFromSmarts('[CH1](=[O])[C,c]')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        logp=x['logp']
+        return (mol.HasSubstructMatch(formaldehyde) or mol.HasSubstructMatch(aldehyde)) and mw<1000 and logp>6
+    return test
+new_tests['Aldehydes (Chronic toxicity)']=create_test()
+
+#Benzotriazoles
+#Not a valid smarts from toolbox
+def create_test():
+    benzotriazole=Chem.MolFromSmarts('N1N=NC2=C1C=CC=C2')
+    def test(x):
+        mol=x['mol']
+        return mol.HasSubstructMatch(benzotriazole)
+    return test
+new_tests['Benzotriazoles']=create_test()
+
+#Imides
+#Doesn't work if carbons are part of aromatic
+def create_test():
+    imide=Chem.MolFromSmarts('C(=O)NC(=O)')
+    not_imide=Chem.MolFromSmarts('c1C(=O)NC(=O)ccccc1')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        logp=x['logp']
+        return mol.HasSubstructMatch(imide) and not mol.HasSubstructMatch(not_imide) and logp<=5 and mw<1000
+    return test
+new_tests['Imides (Acute toxicity)']=create_test()
+def create_test():
+    imide=Chem.MolFromSmarts('C(=O)NC(=O)')
+    not_imide=Chem.MolFromSmarts('c1(C(=O)NC(=O))ccccc1')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        logp=x['logp']
+        return mol.HasSubstructMatch(imide) and not mol.HasSubstructMatch(not_imide) and logp>5 and logp<8 and mw<1000
+    return test
+new_tests['Imides (Chronic toxicity)']=create_test()
+
+#Hydrazines and related compounds
+def create_test():
+    hydra1=Chem.MolFromSmarts('[NX3][NX3]')
+    hydra2=Chem.MolFromSmarts('[CX3]=[NX2][NX2]')
+    hydra3=Chem.MolFromSmarts('[CX3](=O)[NX2][NX3]')
+    hydra4=Chem.MolFromSmarts('[NX2][CX3](=O)[NX2][NX3]')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        return (mol.HasSubstructMatch(hydra1) or mol.HasSubstructMatch(hydra2)\
+               or mol.HasSubstructMatch(hydra3) or mol.HasSubstructMatch(hydra4)) and mw<500
+    return test
+new_tests['Hydrazines and Related Compounds']=create_test()
+
+#Thiols
+def create_test():
+    thiol=Chem.MolFromSmarts('[C,c][SX2H]')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        logp=x['logp']
+        return mol.HasSubstructMatch(thiol) and mw<1000 and logp<6.5
+    return test
+new_tests['Thiols (Acute toxicity)']=create_test()
+def create_test():
+    thiol=Chem.MolFromSmarts('[C,c][SX2H]')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        logp=x['logp']
+        return mol.HasSubstructMatch(thiol) and mw<1000 and logp>=6.5 and logp<9
+    return test
+new_tests['Thiols (Chronic toxicity)']=create_test()
+
+#Acrylamides
+def create_test():
+    acrylamide1=Chem.MolFromSmarts('[CH2]=[CH1]C(=O)[NH,NH2]')
+    acrylamide2=Chem.MolFromSmarts('[CH2]=C([CH3])C(=O)[NH,NH2]')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        logp=x['logp']
+        return (mol.HasSubstructMatch(acrylamide1) or mol.HasSubstructMatch(acrylamide2)) and mw<1000 and logp<8
+    return test
+new_tests['Acrylamides']=create_test()
+
+#Acrylates/Methacrylates
+def create_test():
+    acrylate=Chem.MolFromSmarts('[CH2]=[CH]C(=O)O')
+    methacrylate=Chem.MolFromSmarts('[CH2]=C([CH3])C(=O)O')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        logp=x['logp']
+        return (mol.HasSubstructMatch(acrylate) or mol.HasSubstructMatch(methacrylate)) and logp<=5 and mw<1000
+    return test
+new_tests['Acrylates/Methacrylates (Acute toxicity)']=create_test()
+def create_test():
+    acrylate=Chem.MolFromSmarts('[CH2]=[CH]C(=O)O')
+    methacrylate=Chem.MolFromSmarts('[CH2]=C([CH3])C(=O)O')
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        logp=x['logp']
+        return (mol.HasSubstructMatch(acrylate) or mol.HasSubstructMatch(methacrylate)) and logp>5 and logp<8 and mw<1000
+    return test
+new_tests['Acrylates/Methacrylates (Chronic toxicity)']=create_test()
+
+#Epoxides
+#Grace's advice
+def create_test():
+    epoxide=Chem.MolFromSmarts('c1oc1')
+    aziridine=Chem.MolFromSmarts('c1cn1')
+    # original SMILES for aziridine: 'c1cn1([CH3,$(CH2CH3)])'
+    def test(x):
+        mol=x['mol']
+        mw=x['mol_weight']
+        return mw<1000 and (mol.HasSubstructMatch(epoxide) or mol.HasSubstructMatch(aziridine))
+    return test
+new_tests['Epoxides']=create_test()
+
+for key in new_tests.keys():
+    try:
+        all_tests[key].query = new_tests[key]
+    except KeyError:
+        all_tests[key] = Query(None)
+        all_tests[key].query = new_tests[key]
+
+# It looks like George never finished building this category, so for now it is being deprecated. 
+del all_tests['Persistent, Bioaccumulative and Toxic (PBT) Chemicals']
+
+# Type handling for chemical inputs
+def normalizeChemicals(chemicals):
+    """ This function checks the input type for the given chemicals and outputs the same information as 
+    a DataFrame for smooth handling during querying."""
+    # Check and handle input data types
+    if type(chemicals) is dict:
+        chemicals = pd.DataFrame(chemicals, index = [chemicals['dsstox_sid']])
+    elif type(chemicals) is list:
+        build_a_df = pd.DataFrame(chemicals[0], index = [chemicals[0]['dsstox_sid']])
+        for chem in chemicals[1:]:
+            chem = pd.DataFrame(chem, index = [chem['dsstox_sid']])
+            build_a_df = pd.concat([build_a_df, chem])
+        chemicals = build_a_df
+    elif isinstance(chemicals, pd.DataFrame):
+        pass
+    else:
+        raise TypeError("Chemicals must be supplied as a DataFrame or Dictionary")
+    return chemicals
+
+#Error Handling for all queries
+def checkForAttributes(x):
+    """This function ensures that all necessary attributes have been provided in the appropriate data types. Primarily
+    checks that string values are not fully missing and that numerical columns contain numbers."""
+    # Check inputs for all necessary attributes and data
+    attributes = {'logp':'float64', 'ws':'float64', 'mol_weight':'float64', 'smiles':'object', 'dsstox_sid':'object', 'mol':'object'}
+    key_counter = 0
+    type_counter = 0
+    bad_list = []
+    for attr in attributes:
+        try:
+            x[attr]
+        except KeyError:
+            print(f"KeyError: {attr} must be provided")
+            key_counter += 1
+            bad_list.append(attr)
+    for attr in bad_list:
+        del attributes[attr]
+    for attr in attributes:
+        if x[attr].dtype != attributes[attr]:
+            print(f"TypeError: {attr} must be provided as {attributes[attr]}. Please adjust the input accordingly.")
+            type_counter += 1
+    if key_counter > 0:
+        raise KeyError('One or more attributes is missing. See printed statement(s).')
+    elif type_counter > 0:
+        raise TypeError('One or more attributes is of the wrong type. See printed statement(s).')
+    else: 
+        pass
+    return None
+
+def queryAll(chemicals):
+    """This function will query every category for every chemical of interest.
+       Inputs:
+    - chemicals: A DataFrame, Dictionary, or list of Dictionaries of Chemicals and their attributes, including dsstox_sid, 
+     smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names
+     to match each these attribute titles.
+      
+       Returns:
+    - category_df: A DataFrame of chemicals and their category memberships"""
+    # Manage input type of chemicals
+    chemicals = normalizeChemicals(chemicals)
+    
+    #Manage column types in chemicals DataFrame and ensure all attributes are present
+    checkForAttributes(chemicals)
+
+    categories = all_tests.keys()
+    chem_dict = {'chemicals':chemicals['dsstox_sid']}
+    for category in categories:
+        chem_dict[category] = []
+        for _, info in chemicals.iterrows():
+            try:
+                chem_dict[category].append(all_tests[category].query(info))
+            except TypeError:
+                print(f"{category} are still a problem")
+                chem_dict[category].append(-1)
+    category_df = pd.DataFrame(chem_dict, columns = chem_dict.keys())
+    category_df = category_df.reset_index(drop = True)
+
+    return category_df
+
+def listCategories(one_chem):
+    """ Given a single chemical, this function will return a list of all categories to which that 
+     chemical belongs. 
+      
+       Input: 
+        - one_chem: A DataFrame or Dictionary representing a single chemical and its attributes, including dsstox_sid, 
+     smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names
+     to match each these attribute titles. 
+      
+       Output:
+        - all_cats: A list of all categories to which the chemical belongs. """
+    one_chem = normalizeChemicals(one_chem)
+    checkForAttributes(one_chem)
+    all_cats = []
+    categories = all_tests.keys()
+    for category in categories:
+        if all_tests[category].query(dict(one_chem.iloc[0])):
+            all_cats.append(category)
+    return all_cats

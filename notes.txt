@@ -1,0 +1,7 @@
+Write up a README for the functions a user might employ from categories.py and the necesary repository structure. 
+- queryAll
+- listCategories
+- individual queries (all_tests)
+    - print_tree
+
+Add print_tree functionality for the 22 new tests by creating the tree for them
