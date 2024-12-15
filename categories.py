@@ -266,14 +266,14 @@ for elem in e.iter('{http://schemas.microsoft.com/2003/10/Serialization/Arrays}a
     print_tests[category] = [query_id, query_type]#Final one should always be the top level query hopefully
 
 #The next section contains the hard-coded tests fixed by George
-new_tests={}
+
 
 def subqueryFunction(x):
     """Returns a warning that the subquery query is contained in the parent query function
     for the hard-coded category tests."""
     return "This subquery portion is contained in the parent Logical Query."
 
-def humanBuiltQuery(function = None, query_words = {'qtype':None, 'smart':None, 'prop':None, 'operand':None, 'logic': None, 'subqueries':None}):
+def humanBuiltQuery(function = None, query_words = {'qtype':None, 'smart':None, 'prop':None, 'operand':None, 'logic': None, 'subqueries':None, 'set':None}):
     """This function is an attempt to automate building queries for the hard-coded tests below such that
     print_tree functionality should still work with these newer test types. The query_words dictionary MUST contain
     the key 'qtype' with value 'b:StructureQuery', 'b:ParameterQuery', 'b:ExclusionQuery', or 'LogicalQuery'. Other
@@ -301,9 +301,6 @@ def humanBuiltQuery(function = None, query_words = {'qtype':None, 'smart':None, 
         new_query.subqueries = [humanBuiltQuery(None, query_words['subqueries'][i]) for i in range(len(query_words['subqueries']))]
 
     return new_query
-
-
-    
 
 
 
@@ -474,6 +471,7 @@ all_tests['Dithiocarbamates (Chronic toxicity)']=humanBuiltQuery(create_test(), 
 #Ethylene Glycol Ethers
 #Have to enumerate       
 def create_test():
+    #match_mols and phenyl_mols do not appear to get used in the actual test?
     match_mols=[]
     for i in range(1,8):
         for j in range(0,8):
@@ -511,7 +509,15 @@ def create_test():
         else:
             return True
     return test
-new_tests['Ethylene Glycol Ethers']=create_test()
+ethyl_words = {'qtype':'LogicalQuery', 'logic':'And',
+               'subqueries':[{'qtype':'b:StructureQuery', 'smart':"All symbols contained in ['C','c','O','1','(',')']"}, 
+                             {'qtype':'b:StructureQuery', 'smart':'At Least Two O'},
+                             {'qtype':'b:StructureQuery', 'smart':'No two Cs between Os'},
+                             {'qtype':'b:StructureQuery', 'smart':'No repeating chains bewteen 1-O-1'},
+                             {'qtype':'b:StructureQuery', 'smart':'There are fewer than 7 Cs before the first O and after the last O'},
+                             {'qtype':'b:StructureQuery', 'smart':'There are fewer than 7 cs before the first O and after the last O'},
+                             {'qtype':'b:StructureQuery', 'smart':'There is something before the first O or after the last O'}]}
+all_tests['Ethylene Glycol Ethers']=humanBuiltQuery(create_test(), ethyl_words)
 
 #Neutral Organics
 #Verhaar scheme, see paper called Classifying Environmental Pollutants
@@ -554,27 +560,31 @@ def create_test():
         else: 
             return False
     return test
-new_tests['Neutral Organics']=create_test()
+neutral_words = {'qtype':'LogicalQuery', 'logic':'This test contains more than 21 branches following the Verhaar Scheme from: https://doi.org/10.1016/0045-6535(92)90280-5', 'subqueries':[]}
+all_tests['Neutral Organics']=humanBuiltQuery(create_test(), neutral_words)
 
 #Nonionic Surfactants
+
+#This is immediately repeated and overwritten, so this copy is commented out for clarity on which copy is used
+
 # nonsurf1=Chem.MolFromSmarts('COCCO')
 # nonsurf2=Chem.MolFromSmarts('COCCOC')
 # def test(x):
 #     mol=x['mol']
 #     return mol.HasSubstructMatch(nonsurf1) or mol.HasSubstructMatch(nonsurf2)
-import re
-def test(x):
-    smiles=x['smiles']
-    if '(' in smiles:
-        return False
-    split_smiles=smiles.split('O')
-    if len(split_smiles)==1:
-        return False
-    mol=x['mol']
-    if not mol.HasSubstructMatch(Chem.MolFromSmiles('COC')) or mol.HasSubstructMatch(Chem.MolFromSmiles('C=O')):
-        return False
-    return not any([re.search(r'[^C]',c) for c in split_smiles])
-new_tests['Nonionic Surfactants']=test
+# import re
+# def test(x):
+#     smiles=x['smiles']
+#     if '(' in smiles:
+#         return False
+#     split_smiles=smiles.split('O')
+#     if len(split_smiles)==1:
+#         return False
+#     mol=x['mol']
+#     if not mol.HasSubstructMatch(Chem.MolFromSmiles('COC')) or mol.HasSubstructMatch(Chem.MolFromSmiles('C=O')):
+#         return False
+#     return not any([re.search(r'[^C]',c) for c in split_smiles])
+# all_tests['Nonionic Surfactants']=test
 
 #Nonionic Surfactants
 import math
@@ -588,7 +598,11 @@ def create_test():
         atoms.count('o')>1 and\
         (math.floor(len(mol.GetSubstructMatches(Chem.MolFromSmarts('O[CH2][CH2]')))/2)+1)==len(mol.GetSubstructMatches(Chem.MolFromSmarts('[O]')))
     return test
-new_tests['Nonionic Surfactants']=create_test()
+nonio_words = {'qtype':'LogicalQuery', 'logic':'And',
+               'subqueries':[{'qtype':'b:StructureQuery', 'smart':'[CH3][CR0][CR0][CR0][CR0][CR0]'},
+                             {'qtype':'b:StructureQuery', 'smart':'There is more than 1 o'},
+                             {'qtype':'b:StructureQuery', 'smart':'The number of O[CH2][CH2] divided by 2, plus 1, rounded down, is the number of [O]'}]}
+all_tests['Nonionic Surfactants']=humanBuiltQuery(create_test(), nonio_words)
 
 #Organotins (Acute toxicity) and Organotins (Chronic toxicity)
 
@@ -598,14 +612,22 @@ def create_test():
         mol=x['mol']
         return x['mol_weight']<1000 and mol.HasSubstructMatch(organotin) and x['logp']<=13.7
     return test
-new_tests['Organotins (Acute toxicity)']=create_test()
+orga_words = {'qtype':'LogicalQuery', 'logic':'And',
+              'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},
+                            {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThanOrEqualTo', 'value':13.7},
+                            {'qtype':'b:StructureQuery', 'smart':'C[Sn]'}]}
+all_tests['Organotins (Acute toxicity)']=humanBuiltQuery(create_test(), orga_words)
 def create_test():
     organotin=Chem.MolFromSmarts('C[Sn]') 
     def test(x):
         mol=x['mol']
         return x['mol_weight']<1000 and mol.HasSubstructMatch(organotin) and x['logp']>=13.7
     return test
-new_tests['Organotins (Chronic toxicity)']=create_test()
+orga_words2 = {'qtype':'LogicalQuery', 'logic':'And',
+              'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},
+                            {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'GreaterThanOrEqualTo', 'value':13.7},
+                            {'qtype':'b:StructureQuery', 'smart':'C[Sn]'}]}
+all_tests['Organotins (Chronic toxicity)']=humanBuiltQuery(create_test(), orga_words2)
 
 #Polynitroaromatics (Acute toxicity) and Polynitroaromatics (Chronic toxicity)
 #MW < 1000
@@ -616,14 +638,22 @@ def create_test():
         mol=x['mol']
         return x['mol_weight']<1000 and mol.HasSubstructMatch(polynitroaromatic) and x['logp']<7
     return test
-new_tests['Polynitroaromatics (Acute toxicity)']=create_test()
+polyn_words = {'qtype':'LogicalQuery', 'logic':'And',
+               'subqueries':[{'qtype':'b:StructureQuery', 'smart':'ON(=O)[$(c1c(N(O)=O)cccc1),$(c1cc(N(O)=O)ccc1),$(c1ccc(N(O)=O)cc1),$(c1cncc(N(O)=O)c1)]'},
+                             {'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},
+                             {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThan', 'value':7}]}
+all_tests['Polynitroaromatics (Acute toxicity)']=humanBuiltQuery(create_test(), polyn_words)
 def create_test():
     polynitroaromatic=Chem.MolFromSmarts('N[$(c1c(N)cccc1),$(c1cc(N)ccc1),$(c1ccc(N)cc1),$(c1cncc(N)c1)]')
     def test(x):
         mol=x['mol']
         return x['mol_weight']<1000 and mol.HasSubstructMatch(polynitroaromatic) and x['logp']>=10
     return test
-new_tests['Polynitroaromatics (Chronic toxicity)']=create_test()
+polyn_words2 = {'qtype':'LogicalQuery', 'logic':'And',
+               'subqueries':[{'qtype':'b:StructureQuery', 'smart':'N[$(c1c(N)cccc1),$(c1cc(N)ccc1),$(c1ccc(N)cc1),$(c1cncc(N)c1)]'},
+                             {'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},
+                             {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'GreaterThanOrEqualTo', 'value':10}]}
+all_tests['Polynitroaromatics (Chronic toxicity)']=humanBuiltQuery(create_test(), polyn_words2)
 
 #Substituted Triazines (Acute toxicity) and Substituted Triazines (Chronic toxicity)
 #logp<5
@@ -908,12 +938,6 @@ epox_words = {'qtype':'LogicalQuery', 'logic':'And',\
                                            {'qtype':'b:StructureQuery', 'smart':'c1cn1'}]}]}
 all_tests['Epoxides']=humanBuiltQuery(create_test(), epox_words)
 
-for key in new_tests.keys():
-    try:
-        all_tests[key].query = new_tests[key]
-    except KeyError:
-        all_tests[key] = Query(None)
-        all_tests[key].query = new_tests[key]
 
 # It looks like George never finished building this category, so for now it is being deprecated. 
 del all_tests['Persistent, Bioaccumulative and Toxic (PBT) Chemicals']
@@ -934,7 +958,7 @@ def normalizeChemicals(chemicals):
     elif isinstance(chemicals, pd.DataFrame):
         pass
     else:
-        raise TypeError("Chemicals must be supplied as a DataFrame or Dictionary")
+        raise TypeError("Chemicals must be supplied as a DataFrame, Dictionary, or list of Dictionaries")
     return chemicals
 
 #Error Handling for all queries
