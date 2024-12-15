@@ -5,3 +5,5 @@ Write up a README for the functions a user might employ from categories.py and t
     - print_tree
 
 Add print_tree functionality for the 22 new tests by creating the tree for them
+
+Note: OPERA results are stored as mol/L, but WS measurements should be parts per billion

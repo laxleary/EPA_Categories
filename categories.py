@@ -96,7 +96,7 @@ class Query:
 
 
     def write_query(self,qtype:str,tree:dict ):
-        """This function creates queries for a Class instance, with inputs of a Query Type (qtype) and 
+        """This function creates queries from XML for a Class instance, with inputs of a Query Type (qtype) and 
         a tree. The tree input will be used for logical relations between queries to establish how 
         queries and subqueries relate."""
         # Set the instance type to qtype
@@ -187,7 +187,7 @@ class Query:
                 self.query=func
     
     def print_tree(self,x,tabs=0):
-        """ Given a Class instance and chemical, output the results of applying each query to the chemical
+        """ Given a Class instance and chemical, output the results of applying each query on the chemical
         to the console. For queries with subqueries, the subqueries will be disaplayed below the query in 
         indented lists. Can also be used to view query conditions without a chemical input."""
         qinfo=(self.id,self.type)
@@ -268,6 +268,45 @@ for elem in e.iter('{http://schemas.microsoft.com/2003/10/Serialization/Arrays}a
 #The next section contains the hard-coded tests fixed by George
 new_tests={}
 
+def subqueryFunction(x):
+    """Returns a warning that the subquery query is contained in the parent query function
+    for the hard-coded category tests."""
+    return "This subquery portion is contained in the parent Logical Query."
+
+def humanBuiltQuery(function = None, query_words = {'qtype':None, 'smart':None, 'prop':None, 'operand':None, 'logic': None, 'subqueries':None}):
+    """This function is an attempt to automate building queries for the hard-coded tests below such that
+    print_tree functionality should still work with these newer test types. The query_words dictionary MUST contain
+    the key 'qtype' with value 'b:StructureQuery', 'b:ParameterQuery', 'b:ExclusionQuery', or 'LogicalQuery'. Other
+    keys should contain the necessary information for print_tree for the given qtype. The function will be the
+    query function, as built below. 
+    
+    Required keys by qtype:
+    - Structure or Exclusion Query - 'smart'
+    - Parameter Query - 'prop', 'operand', 'value'
+    - Logical Query - 'logic', 'subqueries': provided as a list of dictionaries obeying input rules for this function
+    """
+    new_query = Query(query_words)
+    new_query.query = function
+    new_query.id = 'CustomQuery'
+    qtype = query_words['qtype']
+    new_query.type = qtype
+    if qtype in ['b:StructureQuery', 'b:ExclusionQuery']:
+        new_query.smart = query_words['smart']
+    elif qtype == 'b:ParameterQuery':
+        new_query.prop = query_words['prop']
+        new_query.operand = query_words['operand']
+        new_query.value = query_words['value']
+    elif qtype == 'LogicalQuery':
+        new_query.logic = query_words['logic']
+        new_query.subqueries = [humanBuiltQuery(None, query_words['subqueries'][i]) for i in range(len(query_words['subqueries']))]
+
+    return new_query
+
+
+    
+
+
+
 #Aliphatic amines
 def create_test():
     primamine=Chem.MolFromSmarts('[NX3;H2;!$(NC=[O,N,S]);!$(NCN)][CX3]')
@@ -280,7 +319,17 @@ def create_test():
         return 'c' not in smiles and mw<1000 and '1' not in smiles and (mol.HasSubstructMatch(primamine) or mol.HasSubstructMatch(secamine)\
         or mol.HasSubstructMatch(tertamine)) 
     return test
-new_tests['Aliphatic Amines']=create_test()
+aa_words = {'qtype':'LogicalQuery', 'logic':'And', \
+             'subqueries': [{'qtype':'b:ExclusionQuery', 'smart':'c'}, \
+                            {'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value': 1000}, \
+                            {'qtype': 'LogicalQuery', 'logic':'or', \
+                              'subqueries': [{'qtype': 'b:StructureQuery', 'smart':'[NX3;H2;!$(NC=[O,N,S]);!$(NCN)][CX3]'}, \
+                                             {'qtype': 'b:StructureQuery', 'smart':'[NX3;H1;!$(NC=[O,N,S]);!$(NCN)](C)[CX3]'}, \
+                                             {'qtype': 'b:StructureQuery', 'smart':'[N;!$(NC=[O,N,S]);!$(NCN)](C)(C)[CX3]'}]}]} 
+all_tests['Aliphatic Amines']=humanBuiltQuery(create_test(), aa_words)
+
+
+
 
 #Alkoxysilanes
 def create_test():
@@ -290,7 +339,10 @@ def create_test():
         mw=x['mol_weight']
         return mw<1000 and mol.HasSubstructMatch(alkoxy)
     return test
-new_tests['Alkoxysilanes']=create_test()
+alk_words = {'qtype':'LogicalQuery', 'logic':'And', \
+             'subqueries': [{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000}, \
+                            {'qtype': 'StructureQuery', 'smart':'[CX4]O[SiX4]'}]}
+all_tests['Alkoxysilanes']=humanBuiltQuery(create_test(), alk_words)
 
 #Aminobenzothiazole Azo Dyes
 def create_test():
@@ -299,7 +351,8 @@ def create_test():
         mol=x['mol'] 
         return mol.HasSubstructMatch(azodye)
     return test
-new_tests['Aminobenzothiazole Azo Dyes']=create_test()
+ami_words = {'qtype': 'b:StructureQuery', 'smart':'N=NC1=NC2=C(S1)C=CC=C2'}
+all_tests['Aminobenzothiazole Azo Dyes']=humanBuiltQuery(create_test(), ami_words)
 
 #Anionic Surfactants
 def create_test():
@@ -322,16 +375,27 @@ def create_test():
         or mol.HasSubstructMatch(silicic))\
         and sorted(rgroup_indexes)==range(min(rgroup_indexes),max(rgroup_indexes)+1) #Tests for straight alkyl chains
     return test
-new_tests['Anionic Surfactants']=create_test()
+ani_words = {'qtype': 'LogicalQuery', 'logic':'And', \
+             'subqueries': [{'qtype':'b:StructureQuery', 'smart':'Straight Alkyl Chain - Cs are adjacent in SMILES'}, \
+                            {'qtype':'LogicalQuery', 'logic':'Or', \
+                             'subqueries': [{'qtype':'b:StructureQuery', 'smart':'COS(=O)(=O)[OH,O-]'},\
+                                            {'qtype':'b:StructureQuery', 'smart':'CS(=O)(=O)[OH,O-]'}, \
+                                            {'qtype':'b:StructureQuery', 'smart':'COP([OH1])([OH1])=O'}, \
+                                            {'qtype':'b:StructureQuery', 'smart':'[CX3;!$(Cc)](=O)[OX2H1]'}, \
+                                            {'qtype':'b:StructureQuery', 'smart':'[Si][OX2H]'}]}]}
+all_tests['Anionic Surfactants']=humanBuiltQuery(create_test(), ani_words)
 
-#Benzotriazoles
-def create_test():
-    benzotriazole=Chem.MolFromSmarts('n1c2ccccc2nn1')
-    def test(x):
-        mol=x['mol']
-        return mol.HasSubstructMatch(benzotriazole)
-    return test
-new_tests['Benzotriazoles']=create_test()
+# #Benzotriazoles
+# Original code has this test twice, but this one would be overwritten by the later copy
+# so it is commented out for now to avoid confusion when searching through the hard-coded tests
+# def create_test():
+#     benzotriazole=Chem.MolFromSmarts('n1c2ccccc2nn1')
+#     def test(x):
+#         mol=x['mol']
+#         return mol.HasSubstructMatch(benzotriazole)
+#     return test
+# benzo_words = {'qtype': 'b:StructureQuery', 'smart':'n1c2ccccc2nn1'}
+# all_tests['Benzotriazoles']=humanBuiltQuery(create_test(), benzo_words)
 
 #Dianilines
 def create_test():
@@ -343,7 +407,11 @@ def create_test():
         return not mol.HasSubstructMatch(not_dianiline1) and not mol.HasSubstructMatch(not_dianiline2)\
         and len(mol.GetSubstructMatches(dianiline))==2 #lol
     return test
-new_tests['Dianilines']=create_test()
+dia_words = {'qtype': 'LogicalQuery', 'logic':'And', \
+              'subqueries': [{'qtype':'b:StructureQuery', 'smart':'c1cc([NH2])ccc1[CH2,O,N,S]c1ccccc1, Needs Two Copies'},\
+                             {'qtype':'b:ExclusionQuery', 'smart':'c1ccccc1[A]~[A]'},\
+                             {'qtype':'b:ExclusionQuery', 'smart':'c1ccccc1[A](c)c'}]}
+all_tests['Dianilines']=humanBuiltQuery(create_test(), dia_words)
 
 #Dithiocarbonates 
 def create_test():
@@ -358,7 +426,30 @@ def create_test():
         mol=x['mol']
         return x['mol_weight']<1000 and x['logp']<5 and any([mol.HasSubstructMatch(dithiocarbamate) for dithiocarbamate in dithiocarbamates])
     return test
-new_tests['Dithiocarbamates (Acute toxicity)']=create_test()
+dithiocarbamate_list = ['CNC(=S)SC',
+                    'CCSC(=S)NC',
+                    'CCCSC(=S)NC',
+                    'CCCCSC(=S)NC',
+                    'CCNC(=S)SC',
+                    'CCNC(=S)SCC',
+                    'CCCSC(=S)NCC',
+                    'CCCCSC(=S)NCC',
+                    'CCCNC(=S)SC',
+                    'CCCNC(=S)SCC',
+                    'CCCNC(=S)SCCC',
+                    'CCCCSC(=S)NCCC',
+                    'CCCCNC(=S)SC',
+                    'CCCCNC(=S)SCC',
+                    'CCCCNC(=S)SCCC',
+                    'CCCCNC(=S)SCCCC',
+                    'S=C(S)NCCNC(=S)S']
+dith_words1 = {'qtype':'LogicalQuery', 'logic':'And', \
+              'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
+                            {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThan', 'value':5}, \
+                            {'qtype':'LogicalQuery', 'logic':'Or', 'subqueries':[]}]}
+for smart in dithiocarbamate_list:
+    dith_words1['subqueries'][2]['subqueries'].append({'qtype':'b:StructureQuery', 'smart':smart})
+all_tests['Dithiocarbamates (Acute toxicity)']=humanBuiltQuery(create_test(), dith_words1)
 def create_test():
     ethylenebisdithiocarbamate=Chem.MolFromSmiles('SC(=S)NCCNC(=S)S')
     dithiocarbamates=[]
@@ -371,7 +462,14 @@ def create_test():
         mol=x['mol']
         return x['mol_weight']<1000 and x['logp']>=5 and x['logp']<19 and any([mol.HasSubstructMatch(dithiocarbamate) for dithiocarbamate in dithiocarbamates])
     return test
-new_tests['Dithiocarbamates (Chronic toxicity)']=create_test()
+dith_words2 = {'qtype':'LogicalQuery', 'logic':'And', \
+              'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
+                            {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'GreaterThanOrEqualTo', 'value':5},\
+                            {'qtype':'b:ParameterQuery', 'prop': 'Log Kow', 'operand':'LessThan', 'value':19}, \
+                            {'qtype':'LogicalQuery', 'logic':'Or', 'subqueries':[]}]}
+for smart in dithiocarbamate_list:
+    dith_words2['subqueries'][3]['subqueries'].append({'qtype':'b:StructureQuery', 'smart':smart})
+all_tests['Dithiocarbamates (Chronic toxicity)']=humanBuiltQuery(create_test(), dith_words2)
 
 #Ethylene Glycol Ethers
 #Have to enumerate       
@@ -536,14 +634,23 @@ def create_test():
         mol=x['mol']
         return x['mol_weight']<1000 and mol.HasSubstructMatch(subtriazine) and x['logp']<5
     return test
-new_tests['Substituted Triazines (Acute toxicity)']=create_test()
+subtri_words1 = {'qtype':'LogicalQuery', 'logic':'And', \
+                 'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000}, \
+                               {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThan', 'value':5},\
+                               {'qtype':'b:StructureQuery', 'smart':'[$(n1nnccc1.[!#1]),$(n1ncncc1.[!#1]),$(n1cncnc1.[!#1])]'}]}
+all_tests['Substituted Triazines (Acute toxicity)']=humanBuiltQuery(create_test(), subtri_words1)
 def create_test():
     subtriazine=Chem.MolFromSmarts('[$(n1nnccc1.[!#1]),$(n1ncncc1.[!#1]),$(n1cncnc1.[!#1])]')#[!H] did not work as expected with aromatics
     def test(x):
         mol=x['mol']
         return x['mol_weight']<1000 and mol.HasSubstructMatch(subtriazine) and x['logp']>5 and x['logp']<=8
     return test
-new_tests['Substituted Triazines (Chronic toxicity)']=create_test()
+subtri_words2 = {'qtype':'LogicalQuery', 'logic':'And', \
+                 'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000}, \
+                               {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'GreaterThan', 'value':5},\
+                               {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThanOrEqualTo', 'value':8},\
+                               {'qtype':'b:StructureQuery', 'smart':'[$(n1nnccc1.[!#1]),$(n1ncncc1.[!#1]),$(n1cncnc1.[!#1])]'}]}
+all_tests['Substituted Triazines (Chronic toxicity)']=humanBuiltQuery(create_test(), subtri_words2)
 
 def convert_ppb(x): #OPERA results stored as mol/L
     ws=x['ws']
@@ -559,7 +666,12 @@ def create_test():
         mol=x['mol']
         return convert_ppb(x)>1 and (mol.HasSubstructMatch(triphenylmethane) or (mol.HasSubstructMatch(diphenylnaphthylmethane)))
     return test
-new_tests['Triarylmethane Pigments/Dyes with Non-solubilizing Groups']=create_test()
+triar_words = {'qtype':'LogicalQuery', 'logic':'And', \
+               'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Water Solubility', 'operand':'GreaterThan', 'value':1},\
+                             {'qtype':'LogicalQuery', 'logic':'Or', \
+                              'subqueries':[{'qtype':'b:StructureQuery', 'smart':'[cH]1[cH]c({})[cH][cH]c1C(c2[cH][cH]c({})[cH][cH]2)=C3[CH]=[CH]C(=[NH,O])[CH]=[CH]3 Formatted with Parapermutations: [NH2,O,$([NH1][CH3]),$([NH1][CH2][CH3]),$(N([CH3])[CH3]),$(N([CH3])[CH2][CH3]),$(N([CH2][CH3])[CH2][CH3])]'},\
+                                            {'qtype':'b:StructureQuery', 'smart':'[cH]1[cH]c({})[cH][cH]c1C(c2[cH][cH]c({})[cH]3[cH][cH][cH][cH][cH]32)=C3[CH]=[CH]C(=[NH,O])[CH]=[CH]3 Formatted with Parapermutations: [NH2,O,$([NH1][CH3]),$([NH1][CH2][CH3]),$(N([CH3])[CH3]),$(N([CH3])[CH2][CH3]),$(N([CH2][CH3])[CH2][CH3])]'}]}]}
+all_tests['Triarylmethane Pigments/Dyes with Non-solubilizing Groups']=humanBuiltQuery(create_test(), triar_words)
 
 #beta-Naphthylamines, Sulfonated
 def create_test():
@@ -577,7 +689,23 @@ def create_test():
         naph_matches=[True for match in match_mols[:] if mol.HasSubstructMatch(match) and match.HasSubstructMatch(mol)]
         return any(naph_matches)
     return test
-new_tests['beta-Naphthylamines, Sulfonated']=create_test()
+beta_words = {'qtype':'LogicalQuery', 'logic':'or', \
+              'subqueries':[]}
+smarts_list = ['[NH2]c1[cH1,$(cO)]c2[cH,$(c[OH]),$(c[NH2])]c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])[cH][cH]c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])[cH1,$(c[OH]),$(c[NH2])][cH][cH]c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2[cH,$(c[OH]),$(c[NH2])][cH]c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])[cH]c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])[cH][cH1,$(c[OH]),$(c[NH2])][cH]c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2[cH,$(c[OH]),$(c[NH2])][cH][cH]c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])[cH][cH][cH1,$(c[OH]),$(c[NH2])]c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2[cH][cH,$(c[OH]),$(c[NH2])]c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])[cH]c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2[cH]c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])[cH1,$(c[OH]),$(c[NH2])][cH]c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2[cH][cH,$(c[OH]),$(c[NH2])][cH]c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2[cH]c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])[cH][cH1,$(c[OH]),$(c[NH2])]c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2[cH][cH][cH,$(c[OH]),$(c[NH2])]c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])c2[cH][cH]1',
+ '[NH2]c1[cH1,$(cO)]c2[cH][cH]c([$(S(=O)(=O)[OH]),$(S(=O)(=O)[CH2][CH2]S[OH3])])[cH1,$(c[OH]),$(c[NH2])]c2[cH][cH]1']
+for smart in smarts_list:
+    beta_words['subqueries'].append({'qtype':'b:StructureQuery', 'smart':smart + ", Must Match in Both Directions"})
+all_tests['beta-Naphthylamines, Sulfonated']=humanBuiltQuery(create_test(), beta_words)
 
 #Aldehydes
 #Turns out these are just wrong in the toolbox, although does compile
@@ -590,7 +718,13 @@ def create_test():
         logp=x['logp']
         return (mol.HasSubstructMatch(formaldehyde) or mol.HasSubstructMatch(aldehyde)) and mw<1000 and logp<=6
     return test
-new_tests['Aldehydes (Acute toxicity)']=create_test()
+alde_words = {'qtype':'LogicalQuery', 'logic':'And', \
+              'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
+                            {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand': 'LessThanOrEqualTo', 'value':6},\
+                            {'qtype':'LogicalQuery', 'logic':'Or', \
+                             'subqueries':[{'qtype':'b:StructureQuery', 'smart':'[CH2](=O)'},\
+                                           {'qtype':'b:StructureQuery', 'smart':'[CH1](=[O])[C,c]'}]}]}
+all_tests['Aldehydes (Acute toxicity)']=humanBuiltQuery(create_test(), alde_words)
 def create_test():
     formaldehyde=Chem.MolFromSmarts('[CH2](=O)') #Needs to be special case because buggy way RDKit handles hydrogens
     aldehyde=Chem.MolFromSmarts('[CH1](=[O])[C,c]')
@@ -600,7 +734,13 @@ def create_test():
         logp=x['logp']
         return (mol.HasSubstructMatch(formaldehyde) or mol.HasSubstructMatch(aldehyde)) and mw<1000 and logp>6
     return test
-new_tests['Aldehydes (Chronic toxicity)']=create_test()
+alde_words2 = {'qtype':'LogicalQuery', 'logic':'And', \
+              'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
+                            {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand': 'GreaterThan', 'value':6},\
+                            {'qtype':'LogicalQuery', 'logic':'Or', \
+                             'subqueries':[{'qtype':'b:StructureQuery', 'smart':'[CH2](=O)'},\
+                                           {'qtype':'b:StructureQuery', 'smart':'[CH1](=[O])[C,c]'}]}]}
+all_tests['Aldehydes (Chronic toxicity)']=humanBuiltQuery(create_test(), alde_words2)
 
 #Benzotriazoles
 #Not a valid smarts from toolbox
@@ -610,7 +750,8 @@ def create_test():
         mol=x['mol']
         return mol.HasSubstructMatch(benzotriazole)
     return test
-new_tests['Benzotriazoles']=create_test()
+benzo_words = {'qtype': 'b:StructureQuery', 'smart':'N1N=NC2=C1C=CC=C2'}
+all_tests['Benzotriazoles']=humanBuiltQuery(create_test(), benzo_words)
 
 #Imides
 #Doesn't work if carbons are part of aromatic
@@ -623,7 +764,12 @@ def create_test():
         logp=x['logp']
         return mol.HasSubstructMatch(imide) and not mol.HasSubstructMatch(not_imide) and logp<=5 and mw<1000
     return test
-new_tests['Imides (Acute toxicity)']=create_test()
+imi_words = {'qtype':'LogicalQuery', 'logic':'And', \
+             'subqueries':[{'qtype':'b:StructureQuery', 'smart':'C(=O)NC(=O)'},\
+                           {'qtype':'b:ExclusionQuery', 'smart':'c1C(=O)NC(=O)ccccc1'},\
+                           {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThanOrEqualTo', 'value':5},\
+                           {'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000}]}
+all_tests['Imides (Acute toxicity)']=humanBuiltQuery(create_test(), imi_words)
 def create_test():
     imide=Chem.MolFromSmarts('C(=O)NC(=O)')
     not_imide=Chem.MolFromSmarts('c1(C(=O)NC(=O))ccccc1')
@@ -633,7 +779,13 @@ def create_test():
         logp=x['logp']
         return mol.HasSubstructMatch(imide) and not mol.HasSubstructMatch(not_imide) and logp>5 and logp<8 and mw<1000
     return test
-new_tests['Imides (Chronic toxicity)']=create_test()
+imi_words2 = {'qtype':'LogicalQuery', 'logic':'And', \
+             'subqueries':[{'qtype':'b:StructureQuery', 'smart':'C(=O)NC(=O)'},\
+                           {'qtype':'b:ExclusionQuery', 'smart':'c1C(=O)NC(=O)ccccc1'},\
+                           {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'GreaterThan', 'value':5},\
+                           {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThan', 'value':8},\
+                           {'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000}]}
+all_tests['Imides (Chronic toxicity)']=humanBuiltQuery(create_test(), imi_words2)
 
 #Hydrazines and related compounds
 def create_test():
@@ -647,7 +799,14 @@ def create_test():
         return (mol.HasSubstructMatch(hydra1) or mol.HasSubstructMatch(hydra2)\
                or mol.HasSubstructMatch(hydra3) or mol.HasSubstructMatch(hydra4)) and mw<500
     return test
-new_tests['Hydrazines and Related Compounds']=create_test()
+hydra_words = {'qtype':'LogicalQuery', 'logic':'And', \
+               'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':500}, \
+                             {'qtype':'LogicalQuery', 'logic':'Or', \
+                              'subqueries':[{'qtype':'b:StructureQuery', 'smart':'[NX3][NX3]'},\
+                                            {'qtype':'b:StructureQuery', 'smart':'[CX3]=[NX2][NX2]'},\
+                                            {'qtype':'b:StructureQuery', 'smart':'[CX3](=O)[NX2][NX3]'},\
+                                            {'qtype':'b:StructureQuery', 'smart':'[NX2][CX3](=O)[NX2][NX3]'}]}]}
+all_tests['Hydrazines and Related Compounds']=humanBuiltQuery(create_test(), hydra_words)
 
 #Thiols
 def create_test():
@@ -658,7 +817,11 @@ def create_test():
         logp=x['logp']
         return mol.HasSubstructMatch(thiol) and mw<1000 and logp<6.5
     return test
-new_tests['Thiols (Acute toxicity)']=create_test()
+thio_words = {'qtype':'LogicalQuery', 'logic':'And', \
+              'subqueries': [{'qtype':'b:StructureQuery', 'smart':'[C,c][SX2H]'},\
+                             {'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
+                             {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThan', 'value':6.5}]}
+all_tests['Thiols (Acute toxicity)']=humanBuiltQuery(create_test(), thio_words)
 def create_test():
     thiol=Chem.MolFromSmarts('[C,c][SX2H]')
     def test(x):
@@ -667,7 +830,12 @@ def create_test():
         logp=x['logp']
         return mol.HasSubstructMatch(thiol) and mw<1000 and logp>=6.5 and logp<9
     return test
-new_tests['Thiols (Chronic toxicity)']=create_test()
+thio_words2 = {'qtype':'LogicalQuery', 'logic':'And', \
+              'subqueries': [{'qtype':'b:StructureQuery', 'smart':'[C,c][SX2H]'},\
+                             {'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
+                             {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'GreaterThanOrEqualTo', 'value':6.5},\
+                             {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThan', 'value':9}  ]}
+all_tests['Thiols (Chronic toxicity)']=humanBuiltQuery(create_test(), thio_words2)
 
 #Acrylamides
 def create_test():
@@ -679,7 +847,13 @@ def create_test():
         logp=x['logp']
         return (mol.HasSubstructMatch(acrylamide1) or mol.HasSubstructMatch(acrylamide2)) and mw<1000 and logp<8
     return test
-new_tests['Acrylamides']=create_test()
+acry_words = {'qtype':'LogicalQuery', 'logic':'And', \
+              'subqueries': [{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
+                             {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThan', 'value':8}, \
+                             {'qtype':'LogicalQuery', 'logic':'Or',\
+                              'subqueries':[{'qtype':'b:StructureQuery', 'smart':'[CH2]=[CH1]C(=O)[NH,NH2]'},\
+                                            {'qtype':'b:StructureQuery', 'smart':'[CH2]=C([CH3])C(=O)[NH,NH2]'}]}]}
+all_tests['Acrylamides']=humanBuiltQuery(create_test(), acry_words)
 
 #Acrylates/Methacrylates
 def create_test():
@@ -691,7 +865,13 @@ def create_test():
         logp=x['logp']
         return (mol.HasSubstructMatch(acrylate) or mol.HasSubstructMatch(methacrylate)) and logp<=5 and mw<1000
     return test
-new_tests['Acrylates/Methacrylates (Acute toxicity)']=create_test()
+acry_words = {'qtype':'LogicalQuery', 'logic':'And', \
+              'subqueries': [{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
+                             {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThanOrEqualTo', 'value':5}, \
+                             {'qtype':'LogicalQuery', 'logic':'Or',\
+                              'subqueries':[{'qtype':'b:StructureQuery', 'smart':'[CH2]=[CH]C(=O)O'},\
+                                            {'qtype':'b:StructureQuery', 'smart':'[CH2]=C([CH3])C(=O)O'}]}]}
+all_tests['Acrylates/Methacrylates (Acute toxicity)']=humanBuiltQuery(create_test(), acry_words)
 def create_test():
     acrylate=Chem.MolFromSmarts('[CH2]=[CH]C(=O)O')
     methacrylate=Chem.MolFromSmarts('[CH2]=C([CH3])C(=O)O')
@@ -701,7 +881,14 @@ def create_test():
         logp=x['logp']
         return (mol.HasSubstructMatch(acrylate) or mol.HasSubstructMatch(methacrylate)) and logp>5 and logp<8 and mw<1000
     return test
-new_tests['Acrylates/Methacrylates (Chronic toxicity)']=create_test()
+acry_words2 = {'qtype':'LogicalQuery', 'logic':'And', \
+              'subqueries': [{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
+                             {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'GreaterThan', 'value':5}, \
+                             {'qtype':'b:ParameterQuery', 'prop':'Log Kow', 'operand':'LessThan', 'value':8}, \
+                             {'qtype':'LogicalQuery', 'logic':'Or',\
+                              'subqueries':[{'qtype':'b:StructureQuery', 'smart':'[CH2]=[CH]C(=O)O'},\
+                                            {'qtype':'b:StructureQuery', 'smart':'[CH2]=C([CH3])C(=O)O'}]}]}
+all_tests['Acrylates/Methacrylates (Chronic toxicity)']=humanBuiltQuery(create_test(), acry_words2)
 
 #Epoxides
 #Grace's advice
@@ -714,7 +901,12 @@ def create_test():
         mw=x['mol_weight']
         return mw<1000 and (mol.HasSubstructMatch(epoxide) or mol.HasSubstructMatch(aziridine))
     return test
-new_tests['Epoxides']=create_test()
+epox_words = {'qtype':'LogicalQuery', 'logic':'And',\
+              'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
+                            {'qtype':'LogicalQuery', 'logic':'Or',\
+                             'subqueries':[{'qtype':'b:StructureQuery', 'smart':'c1oc1'},\
+                                           {'qtype':'b:StructureQuery', 'smart':'c1cn1'}]}]}
+all_tests['Epoxides']=humanBuiltQuery(create_test(), epox_words)
 
 for key in new_tests.keys():
     try:
