@@ -101,17 +101,6 @@ categories.py defines a Query class. Instances of the Query class correspond to 
     - Output: *category_df*, A DataFrame of chemicals and their category memberships, with an example depicted below:
 
 <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
