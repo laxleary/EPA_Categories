@@ -267,12 +267,6 @@ for elem in e.iter('{http://schemas.microsoft.com/2003/10/Serialization/Arrays}a
 
 #The next section contains the hard-coded tests fixed by George
 
-
-def subqueryFunction(x):
-    """Returns a warning that the subquery query is contained in the parent query function
-    for the hard-coded category tests."""
-    return "This subquery portion is contained in the parent Logical Query."
-
 def humanBuiltQuery(function = None, query_words = {'qtype':None, 'smart':None, 'prop':None, 'operand':None, 'logic': None, 'subqueries':None, 'set':None}):
     """This function is an attempt to automate building queries for the hard-coded tests below such that
     print_tree functionality should still work with these newer test types. The query_words dictionary MUST contain
@@ -302,8 +296,6 @@ def humanBuiltQuery(function = None, query_words = {'qtype':None, 'smart':None, 
 
     return new_query
 
-
-
 #Aliphatic amines
 def create_test():
     primamine=Chem.MolFromSmarts('[NX3;H2;!$(NC=[O,N,S]);!$(NCN)][CX3]')
@@ -324,9 +316,6 @@ aa_words = {'qtype':'LogicalQuery', 'logic':'And', \
                                              {'qtype': 'b:StructureQuery', 'smart':'[NX3;H1;!$(NC=[O,N,S]);!$(NCN)](C)[CX3]'}, \
                                              {'qtype': 'b:StructureQuery', 'smart':'[N;!$(NC=[O,N,S]);!$(NCN)](C)(C)[CX3]'}]}]} 
 all_tests['Aliphatic Amines']=humanBuiltQuery(create_test(), aa_words)
-
-
-
 
 #Alkoxysilanes
 def create_test():

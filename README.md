@@ -21,7 +21,7 @@ The classification methods used in this set use DSSTOX_SID, , Log Kow, Molecular
 - Molecular Weight: 'mol_weight'
 - RDKit.Mol: 'mol'
 - SMILES: 'smiles'
-- Water Solubility: 'ws'
+- Water Solubility: 'ws', *Note that OPERA supplies solubility measurements as mol/L but this code uses ppm values (Conversion already handled for Triarylmethane Pigments/Dyes with Non-solubilizing Groups classification)
 
 Chemicals can be provided as a DataFrame containing these columns, a dictionary containing each of these keys, or a list of dictionaries, each with all of the required keys. In addition, there are built-in error and input checks to warn users if the input type is incompatible with the desired function. 
 
@@ -77,4 +77,268 @@ test_chems_df['mols'] = [Chem.MolFromSmiles(smile) for smile in test_chems_df['s
 ```
 
 ## User-Focused Functions
-Note: catgeories.py includes code that parses the original QSAR Toolbox XML in order to create many of the tests for the EPA categories. To this end, there are many functions defined in the script that are not particularly meant for general use, and instead allow for parsing of XML and organization of tests and queries. This section will focus on the functions that allow users to match chemicals to categories and to obtain information about those categories. 
+Note: catgeories.py includes code that parses the original QSAR Toolbox XML in order to create many of the tests for the EPA categories. To this end, there are many functions defined in the script that are not particularly meant for general use, and instead allow for parsing of XML and organization of tests and queries. This section will focus on the functions that allow users to match chemicals to categories and to obtain information about those categories.
+
+### Code Structure Information
+categories.py defines a Query class. Instances of the Query class correspond to the different available categories. These instances are stored by category key in the dictionary all_tests. Each instance has a .query attribute, which can be applied to an individual chemical in order to obtain a boolean value for whether the given chemical belongs in the specified category. Most queries were built directly from the parsed XML, but some categories required hard-coding of the query tests due to corrupted SMARTS in the XML. These hard-coded categories are italicized in the category list below. 
+
+### Function Definitions
+- **all_tests[Category Title].query**: A quick method for determining whether a chemical belongs in a specific category.
+
+    - Input: *x*, individual Chemical, provided as a dictionary or DataFrame slice with the keys/columns speficied above. 
+    - Output: *boolean*, value specifies whether x is in Category Title or not
+
+- [**all_tests[Category Title].print_tree**](https://github.com/laxleary/EPA_Categories/blob/689642cd346f8ae27deaa3df7723742bb4083f3d/categories.py#L189): Allows the user to view the testing process for determining whether a chemical belongs in a specific category. Can be run with or without a chemical input.
+
+    - Input: *x*, Default value of x is None but an individual chemical can also be supplied
+    - Output: *printed logic tree*, Each line of the logic tree will contain the query type and all necessary parameters. If data is provided for x, the last value of each line will contain the boolean value for whether x fulfills that piece of the query. 
+        - For the XML-originating queries, the first value will be the query ID identifying the query in the XML document. 
+        - For hard-coded queries, the first value will instead say CustomQuery and all lines after the first will terminate with "does not process", since the functions for all subqueries are contained within the top branch of the tree only.
+
+- [**queryAll**](https://github.com/laxleary/EPA_Categories/blob/689642cd346f8ae27deaa3df7723742bb4083f3d/categories.py#L988): Given a set of chemical(s), returns a DataFrame containing one column for chemical DSSTOXSIDs and individual columns for every category included in all_tests. These columns will contain boolean values, thus describing category membership for the chemical set in a fingerprint-like way. 
+
+    - Input: *chemicals*, A DataFrame, Dictionary, or list of Dictionaries of Chemicals and their attributes, including dsstox_sid, smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names to match each of these attribute titles.
+    - Output: *category_df*, A DataFrame of chemicals and their category memberships, with an example depicted below:
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>chemicals</th>
+      <th>Acid Chlorides</th>
+      <th>Acrylamides</th>
+      <th>Acrylates/Methacrylates (Acute toxicity)</th>
+      <th>Aldehydes (Acute toxicity)</th>
+      <th>Aliphatic Amines</th>
+      <th>Aluminum Compounds</th>
+      <th>Anilines (Acute toxicity)</th>
+      <th>Azides (Acute toxicity)</th>
+      <th>Benzotriazoles (Acute toxicity)</th>
+      <th>...</th>
+      <th>Organotins (Chronic toxicity)</th>
+      <th>Phenols (Chronic toxicity)</th>
+      <th>Phosphinate Esters (Chronic toxicity)</th>
+      <th>Polynitroaromatics (Chronic toxicity)</th>
+      <th>Substituted Triazines (Chronic toxicity)</th>
+      <th>Thiols (Chronic toxicity)</th>
+      <th>Vinyl Esters (Chronic toxicity)</th>
+      <th>Diazoniums (Chronic toxicity)</th>
+      <th>Ethylene Glycol Ethers</th>
+      <th>Benzotriazoles</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>DTXSID90480751</td>
+      <td>True</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>...</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>DTXSID50939730</td>
+      <td>False</td>
+      <td>False</td>
+      <td>True</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>...</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>DTXSID2036405</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>True</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>...</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>DTXSID1024835</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>True</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>...</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>DTXSID30878870</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>True</td>
+      <td>False</td>
+      <td>...</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+    </tr>
+  </tbody>
+</table>
+<p>5 rows × 67 columns</p>
+</div>
+
+- [**listCategories**](https://github.com/laxleary/EPA_Categories/blob/689642cd346f8ae27deaa3df7723742bb4083f3d/categories.py#L1018): Given an individual chemical, this function outputs a list of all categories to which the chemical belongs. 
+
+    - Input: *one_chem*, A DataFrame or Dictionary representing a single chemical and its attributes, including dsstox_sid, smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names to match each of these attribute titles. 
+    - Output: *all_cats*, A list of all categories to which the chemical belongs according to the included tests. 
+
+
+### Included Categories
+- Acid Chlorides
+- *Acrylamides*
+- *Acrylates/Methacrylates (Acute toxicity)*
+- *Acrylates/Methacrylates (Chronic toxicity)*
+- *Aldehydes (Acute toxicity)*
+- *Aldehydes (Chronic toxicity)*
+- *Aliphatic Amines*
+- *Alkoxysilanes*
+- Aluminum Compounds
+- *Aminobenzothiazole Azo Dyes*
+- Anhydrides, Carboxylic acid
+- Anilines (Acute toxicity)
+- Anilines (Chronic toxicity)
+- *Anionic Surfactants*
+- Azides (Acute toxicity)
+- Azides (Chronic toxicity)
+- Benzotriazole-hindered phenols
+- *Benzotriazoles*
+- Benzotriazoles (Acute toxicity)
+- Benzotriazoles (Chronic toxicity)
+- Boron Compounds
+- Cationic (quaternary ammonium) surfactants
+- Cobalt
+- *Dianilines*
+- Diazoniums (Acute toxicity)
+- Diazoniums (Chronic toxicity)
+- Dichlorobenzidine-based Pigments
+- Diisocyanates
+- *Dithiocarbamates (Acute toxicity)*
+- *Dithiocarbamates (Chronic toxicity)*
+- *Epoxides*
+- Esters (Acute toxicity)
+- Esters (Chronic toxicity)
+- *Ethylene Glycol Ethers*
+- Hindered Amines
+- *Hydrazines and Related Compounds*
+- *Imides (Acute toxicity)*
+- *Imides (Chronic toxicity)*
+- Lanthanides or Rare Earth Metals
+- *Neutral Organics*
+- Nickel Compounds
+- *Nonionic Surfactants*
+- *Organotins (Acute toxicity)*
+- *Organotins (Chronic toxicity)*
+- Peroxides
+- Phenolphthaleins
+- Phenols (Acute toxicity)
+- Phenols (Chronic toxicity)
+- Phosphates, Inorganic
+- Phosphinate Esters (Acute toxicity)
+- Phosphinate Esters (Chronic toxicity)
+- *Polynitroaromatics (Acute toxicity)*
+- *Polynitroaromatics (Chronic toxicity)*
+- Rosin
+- Soluble complexes of Zinc
+- Stilbene, derivatives of 4,4-bis(triazin-2-ylamino)-
+- *Substituted Triazines (Acute toxicity)*
+- *Substituted Triazines (Chronic toxicity)*
+- *Thiols (Acute toxicity)*
+- *Thiols (Chronic toxicity)*
+- *Triarylmethane Pigments/Dyes with Non-solubilizing Groups*
+- Vinyl Esters (Acute toxicity)
+- Vinyl Esters (Chronic toxicity)
+- Vinyl Sulfones
+- Zirconium Compounds
+- *beta-Naphthylamines, Sulfonated*
+
+
