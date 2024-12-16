@@ -21,7 +21,7 @@ The classification methods used in this set use DSSTOX_SID, , Log Kow, Molecular
 - Molecular Weight: 'mol_weight'
 - RDKit.Mol: 'mol'
 - SMILES: 'smiles'
-- Water Solubility: 'ws', *Note that OPERA supplies solubility measurements as mol/L but this code uses ppm values (Conversion already handled for Triarylmethane Pigments/Dyes with Non-solubilizing Groups classification)
+- Water Solubility: 'ws', *Note that OPERA supplies solubility measurements as mol/L but many category definitions are initially provided in ppm. Current code will assign categories based on mol/L inputs.
 
 Chemicals can be provided as a DataFrame containing these columns, a dictionary containing each of these keys, or a list of dictionaries, each with all of the required keys. In addition, there are built-in error and input checks to warn users if the input type is incompatible with the desired function. 
 
