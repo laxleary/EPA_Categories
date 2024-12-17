@@ -89,14 +89,14 @@ Note: catgeories.py includes code that parses the original QSAR Toolbox XML in o
 categories.py defines a Query class. Instances of the Query class correspond to the different available categories. These instances are stored by category key in the dictionary all_tests. Each instance has a .query attribute, which can be applied to an individual chemical in order to obtain a boolean value for whether the given chemical belongs in the specified category. Most queries were built directly from the parsed XML, but some categories required hard-coding of the query tests due to corrupted SMARTS in the XML. These hard-coded categories are italicized in the category list below. 
 
 ### Function Definitions
-- [**singleQuery**](https://github.com/laxleary/EPA_Categories/blob/f78bbaa67a0741030b072aa2b0490defc2022193/categories.py#L1037): A quick method for determining whether a chemical belongs in a specific category.
+- [**singleQuery**](https://github.com/laxleary/EPA_Categories/blob/e98e68724a4955ba5571faa06a1c806f8ae0aa34/categories.py#L1037): A quick method for determining whether a chemical belongs in a specific category.
 
     - Inputs: 
       - *one_chem*, individual Chemical, provided as a dictionary or DataFrame slice with the keys/columns speficied above. 
       - *category_title*, String representing a category title. Possibilities listed below.
     - Output: *boolean*, value specifies whether x is in Category Title or not
 
-- [**printTree**](https://github.com/laxleary/EPA_Categories/blob/f78bbaa67a0741030b072aa2b0490defc2022193/categories.py#L1059): Allows the user to view the testing process for determining whether a chemical belongs in a specific category. Can be run with or without a chemical input.
+- [**printTree**](https://github.com/laxleary/EPA_Categories/blob/e98e68724a4955ba5571faa06a1c806f8ae0aa34/categories.py#L1059): Allows the user to view the testing process for determining whether a chemical belongs in a specific category. Can be run with or without a chemical input.
 
     - Inputs: 
       - *one_chem*, Default value of x is None but an individual chemical can also be supplied with the same
