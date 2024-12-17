@@ -102,9 +102,20 @@ categories.py defines a Query class. Instances of the Query class correspond to 
       - *one_chem*, Default value of x is None but an individual chemical can also be supplied with the same
     constraints as in singleQuery 
       - *category_title*, String representing a category title. Possibilities listed below.
+      - *printer*, Boolean with default value True. If True, then this result will be output to the console as
+      a print statement. If False, nothing will be printed and the result will instead be a string variable.
     - Output: *printed logic tree*, Each line of the logic tree will contain the query type and all necessary parameters. If data is provided for x, the last value of each line will contain the boolean value for whether x fulfills that piece of the query. 
         - For the XML-originating queries, the first value will be the query ID identifying the query in the XML document. 
         - For hard-coded queries, the first value will instead say CustomQuery and all lines after the first will terminate with "does not process", since the functions for all subqueries are contained within the top branch of the tree only.
+
+If you wish to store the entire set of logical trees for all chemical categories, add categories.all_tests to your imports and run the following code:
+
+```python
+the_test_dictionary = {}
+for key in all_tests.keys():
+    the_test_dictionary[key] = printTree(key,None, printer = False)
+```
+Now, the variable the_test_dictionary stores strings representing the tests required for classifying chemicals into each category, stored by category title.
 
 - [**queryAll**](https://github.com/laxleary/EPA_Categories/blob/689642cd346f8ae27deaa3df7723742bb4083f3d/categories.py#L988): Given a set of chemical(s), returns a DataFrame containing one column for chemical DSSTOXSIDs and individual columns for every category included in all_tests. These columns will contain boolean values, thus describing category membership for the chemical set in a fingerprint-like way. 
 

@@ -186,7 +186,7 @@ class Query:
                     return any([sq.query(x) for sq in self.subqueries])
                 self.query=func
     
-    def print_tree(self,x,tabs=0):
+    def print_tree(self,x,tabs=0, printer = True):
         """ Given a Class instance and chemical, output the results of applying each query on the chemical
         to the console. For queries with subqueries, the subqueries will be disaplayed below the query in 
         indented lists. Can also be used to view query conditions without a chemical input."""
@@ -201,9 +201,16 @@ class Query:
             qinfo=qinfo+(bool(self.query(x)),)
         except:
             qinfo=qinfo+('does not process',)
-        print('\t'*tabs+str(qinfo))
+        master_string = '\t'*tabs+str(qinfo)
+        if printer:
+            print('\t'*tabs+str(qinfo))
+        else:
+            return master_string
         for sq in self.subqueries:
-            sq.print_tree(x,tabs+1)
+            sq.print_tree(x,tabs+1, printer)
+        if not printer:
+            master_string += '\n'+ sq.print_tree(x,tabs+1, printer)
+        
     
     
 
@@ -1056,17 +1063,20 @@ def singleQuery(category_title, one_chem):
         print(f"{category_title} is not a valid category")
     return(all_tests[category_title].query(dict(one_chem.iloc[0])))
 
-def printTree(category_title, one_chem = None):
+def printTree(category_title, one_chem = None, printer = True):
     """Given a category title and chemical, output the results of applying each query on the chemical
         to the console. For queries with subqueries, the subqueries will be disaplayed below the query in 
-        indented lists. Can also be used to view query conditions without a chemical input.
+        indented lists. Can also be used to view query conditions without a chemical input. This is either a printed
+        result OR a stored variable, depending on whether printer is set to True or False.
         
-        Inputs: 
+       Inputs: 
         - category_title: A string representing a category title covered by these tests. Full list of acceptable
-    categories is provided in the README.
+        categories is provided in the README.
         - one_chem: Default None. A DataFrame or Dictionary representing a single chemical and its attributes, including dsstox_sid, 
-     smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names
-     to match each these attribute titles. 
+        smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names
+        to match each these attribute titles. 
+        - printer: Default True. Whether or not you actually want to print the logic tree. With printer = False, this
+        can output the tree as a savable string rather than actually printing it. 
       
        Output:
         - logic tree: A printed logic tree showing how classification decisions for the given category are made. If
@@ -1082,6 +1092,6 @@ def printTree(category_title, one_chem = None):
     if one_chem:
         one_chem = normalizeChemicals(one_chem)
         checkForAttributes(one_chem)
-        return(all_tests[category_title].print_tree(dict(one_chem.iloc[0])))
+        return(all_tests[category_title].print_tree(dict(one_chem.iloc[0]), printer = printer))
     else: 
-        return(all_tests[category_title].print_tree(None))
+        return(all_tests[category_title].print_tree(None, printer = printer))
