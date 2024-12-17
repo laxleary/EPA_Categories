@@ -14,7 +14,7 @@ In order to use this code in an independent repository, the file and folder stru
 Running the following in any script or notebook located in the same folder as categories.py will give direct access to the main user functions for categorizing chemicals:
 
 ``` python
-from categories import all_tests, queryAll, listCategories
+from categories import queryAll, listCategories, singleQuery, printTree
 ```
 For files in folders other than that containing categories.py, the user need only adjust the file path in front of 'categories' in the above code. 
 
@@ -89,14 +89,19 @@ Note: catgeories.py includes code that parses the original QSAR Toolbox XML in o
 categories.py defines a Query class. Instances of the Query class correspond to the different available categories. These instances are stored by category key in the dictionary all_tests. Each instance has a .query attribute, which can be applied to an individual chemical in order to obtain a boolean value for whether the given chemical belongs in the specified category. Most queries were built directly from the parsed XML, but some categories required hard-coding of the query tests due to corrupted SMARTS in the XML. These hard-coded categories are italicized in the category list below. 
 
 ### Function Definitions
-- **all_tests[Category Title].query**: A quick method for determining whether a chemical belongs in a specific category.
+- [**singleQuery**](https://github.com/laxleary/EPA_Categories/blob/f78bbaa67a0741030b072aa2b0490defc2022193/categories.py#L1037): A quick method for determining whether a chemical belongs in a specific category.
 
-    - Input: *x*, individual Chemical, provided as a dictionary or DataFrame slice with the keys/columns speficied above. 
+    - Inputs: 
+      - *one_chem*, individual Chemical, provided as a dictionary or DataFrame slice with the keys/columns speficied above. 
+      - *category_title*, String representing a category title. Possibilities listed below.
     - Output: *boolean*, value specifies whether x is in Category Title or not
 
-- [**all_tests[Category Title].print_tree**](https://github.com/laxleary/EPA_Categories/blob/689642cd346f8ae27deaa3df7723742bb4083f3d/categories.py#L189): Allows the user to view the testing process for determining whether a chemical belongs in a specific category. Can be run with or without a chemical input.
+- [**printTree**](https://github.com/laxleary/EPA_Categories/blob/f78bbaa67a0741030b072aa2b0490defc2022193/categories.py#L1059): Allows the user to view the testing process for determining whether a chemical belongs in a specific category. Can be run with or without a chemical input.
 
-    - Input: *x*, Default value of x is None but an individual chemical can also be supplied
+    - Inputs: 
+      - *one_chem*, Default value of x is None but an individual chemical can also be supplied with the same
+    constraints as in singleQuery 
+      - *category_title*, String representing a category title. Possibilities listed below.
     - Output: *printed logic tree*, Each line of the logic tree will contain the query type and all necessary parameters. If data is provided for x, the last value of each line will contain the boolean value for whether x fulfills that piece of the query. 
         - For the XML-originating queries, the first value will be the query ID identifying the query in the XML document. 
         - For hard-coded queries, the first value will instead say CustomQuery and all lines after the first will terminate with "does not process", since the functions for all subqueries are contained within the top branch of the tree only.

@@ -198,7 +198,7 @@ class Query:
         elif self.type=='LogicalQuery':
             qinfo=qinfo+(self.logic,)
         try:
-            qinfo=qinfo+(self.query(x),)
+            qinfo=qinfo+(bool(self.query(x)),)
         except:
             qinfo=qinfo+('does not process',)
         print('\t'*tabs+str(qinfo))
@@ -1029,3 +1029,59 @@ def listCategories(one_chem):
         if all_tests[category].query(dict(one_chem.iloc[0])):
             all_cats.append(category)
     return all_cats
+
+possible_categories = list(all_tests.keys())
+
+#These two functions simplify the necessary inputs for single queries and print trees
+
+def singleQuery(category_title, one_chem):
+    """This function takes in a category title and a single chemical entry and outputs whether the chemical is a 
+    member of the specified category. 
+    
+           Inputs: 
+        - category_title: A string representing a category title covered by these tests. Full list of acceptable
+    categories is provided in the README.
+        - one_chem: A DataFrame or Dictionary representing a single chemical and its attributes, including dsstox_sid, 
+     smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names
+     to match each these attribute titles. 
+      
+       Output:
+        - boolean: A True/False value indicating the truth of the statement "one_chem is classified as category_title."
+
+    At its core, singleQuery handles non-dictionary input types such as DataFrames and adds error handling for the print_tree feature of a Query
+    instance and then runs the function."""
+    one_chem = normalizeChemicals(one_chem)
+    checkForAttributes(one_chem)
+    if category_title not in possible_categories:
+        print(f"{category_title} is not a valid category")
+    return(all_tests[category_title].query(dict(one_chem.iloc[0])))
+
+def printTree(category_title, one_chem = None):
+    """Given a category title and chemical, output the results of applying each query on the chemical
+        to the console. For queries with subqueries, the subqueries will be disaplayed below the query in 
+        indented lists. Can also be used to view query conditions without a chemical input.
+        
+        Inputs: 
+        - category_title: A string representing a category title covered by these tests. Full list of acceptable
+    categories is provided in the README.
+        - one_chem: Default None. A DataFrame or Dictionary representing a single chemical and its attributes, including dsstox_sid, 
+     smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names
+     to match each these attribute titles. 
+      
+       Output:
+        - logic tree: A printed logic tree showing how classification decisions for the given category are made. If
+        one_chem is provided, each branch will show whether one_chem satisfied the requirement or not for queries
+        originating in the XML*. 
+
+        *Queries that required hard-coded repair can be printed but will not show branch-by-branch results for application
+        of constraints to one_chem.
+
+        """
+    if category_title not in possible_categories:
+        print(f"{category_title} is not a valid category")
+    if one_chem:
+        one_chem = normalizeChemicals(one_chem)
+        checkForAttributes(one_chem)
+        return(all_tests[category_title].print_tree(dict(one_chem.iloc[0])))
+    else: 
+        return(all_tests[category_title].print_tree(None))
