@@ -11,6 +11,12 @@ In order to use this code in an independent repository, the file and folder stru
         │   └── raw
         │       └── epa_categories.xml
 
+Running the following in any script or notebook located in the same folder as categories.py will give direct access to the main user functions for categorizing chemicals:
+
+``` python
+from categories import all_tests, queryAll, listCategories
+```
+For files in folders other than that containing categories.py, the user need only adjust the file path in front of 'categories' in the above code. 
 
 ## Input Format
 
