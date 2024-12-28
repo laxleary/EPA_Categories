@@ -1,6 +1,6 @@
 # EPA Categories
 
-The files in this repository can be used to identify membership in the EPA Categories provided from the OECD 2010 QSAR Toolbox 2.0 for chemicals of interest. This README outlines how to use the functions provided herein, including how to set up a repository for use, format inputs, and apply functions.
+The files in this repository can be used to identify membership in the EPA New Chemical Categories (NCC) for chemicals of interest using the NCC profiler as implemented in the OECD QSAR Toolbox v4.6. This README outlines how to use the functions provided herein, including how to set up a repository for use, format inputs, and apply functions.
 
 ## Repository Setup
 
@@ -20,21 +20,21 @@ For files in folders other than that containing categories.py, the user need onl
 
 ## Input Format
 
-The classification methods used in this set use DSSTOX_SID, , Log Kow, Molecular Weight, SMILES, Water Solubility,and RDkit.Mol to determine category membership. Classification functions will require all of this information for each chemical of interest. The key/column names for each of these categories are as follows:
+The classification methods used in this set use DSSTOX_SID, Log Kow, Molecular Weight, SMILES, Water Solubility,and RDkit.Mol to determine category membership. Classification functions will require all of this information for each chemical of interest. The key/column names for each of these categories are as follows:
 
 - DSSTOX_SID: 'dsstox_sid'
 - Log Kow: 'logp'
 - Molecular Weight: 'mol_weight'
 - RDKit.Mol: 'mol'
 - SMILES: 'smiles'
-- Water Solubility: 'ws', *Note that OPERA supplies solubility measurements as mol/L but many category definitions are initially provided in ppm. Current code will assign categories based on mol/L inputs.
+- Water Solubility: 'ws', *If using predictions from OPERA, these are provided in units as mol/L but the category definitions as implemented in the Toolbox rely on units of mg/L (unlike the original category definitions which used units of ug/L). Current code will assign categories based on mol/L inputs.
 
 Chemicals can be provided as a DataFrame containing these columns, a dictionary containing each of these keys, or a list of dictionaries, each with all of the required keys. In addition, there are built-in error and input checks to warn users if the input type is incompatible with the desired function. 
 
 ### Input examples:
 
 ```python
-import rdkit as Chem
+from rdkit import Chem
 import pandas as pd
 
 # Single-chemical Dictionary
@@ -83,10 +83,10 @@ test_chems_df['mols'] = [Chem.MolFromSmiles(smile) for smile in test_chems_df['s
 ```
 
 ## User-Focused Functions
-Note: catgeories.py includes code that parses the original QSAR Toolbox XML in order to create many of the tests for the EPA categories. To this end, there are many functions defined in the script that are not particularly meant for general use, and instead allow for parsing of XML and organization of tests and queries. This section will focus on the functions that allow users to match chemicals to categories and to obtain information about those categories.
+Note: catgeories.py includes code that parses the original QSAR Toolbox XML in order to create many of the tests for the EPA categories. To this end, there are many functions defined in the script that are not particularly meant for general use, and instead allow for parsing of XML and organisation of tests and queries. This section will focus on the functions that allow users to match chemicals to categories and to obtain information about those categories.
 
 ### Code Structure Information
-categories.py defines a Query class. Instances of the Query class correspond to the different available categories. These instances are stored by category key in the dictionary all_tests. Each instance has a .query attribute, which can be applied to an individual chemical in order to obtain a boolean value for whether the given chemical belongs in the specified category. Most queries were built directly from the parsed XML, but some categories required hard-coding of the query tests due to corrupted SMARTS in the XML. These hard-coded categories are italicized in the category list below. 
+categories.py defines a Query class. Instances of the Query class correspond to the different available categories. These instances are stored by category key in the dictionary all_tests. Each instance has a .query attribute, which can be applied to an individual chemical in order to obtain a boolean value for whether the given chemical belongs in the specified category. Most queries were built directly from the parsed XML, but some categories required hard-coding of the query tests due to corrupted SMARTS in the XML. These hard-coded categories are italicised in the category list below. 
 
 ### Function Definitions
 - [**singleQuery**](https://github.com/laxleary/EPA_Categories/blob/e98e68724a4955ba5571faa06a1c806f8ae0aa34/categories.py#L1037): A quick method for determining whether a chemical belongs in a specific category.

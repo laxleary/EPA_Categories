@@ -1,24 +1,21 @@
 # Import all dependencies
 import pandas as pd
 import numpy as np
-import pymongo
 import sys
 import os
 from datetime import datetime
-
 from rdkit import Chem
+from pathlib import Path
 
-import pymongo
-
-
+TOP = Path.cwd().as_posix()
 # Set access variables for all necessary folders. Folder structure should mimic code. 
-raw_dir =  'data/raw/'
-interim_dir = 'data/interim/'
-external_dir = 'data/external/'
-figures_dir = 'reports/figures/'
+raw_dir = Path(TOP) / 'data' /'raw'
+interim_dir = Path(TOP) / 'data' /'interim'
+external_dir = Path(TOP) / 'data' /'external'
+figures_dir = Path(TOP)/ 'reports'/'figures'
 
 # Open the XML file in read mode
-with open(raw_dir + 'epa_categories.xml','r', encoding = 'utf8') as f:
+with open(raw_dir / 'epa_categories.xml','r', encoding = 'utf8') as f:
     xml=f.read()
 
 # Collapse all XML to a single line (for ease of reading?)
@@ -26,7 +23,7 @@ xml=xml.replace('\n','')
 
 # Parse the XML as a tree
 import xml.etree.ElementTree as ET
-e=ET.parse(raw_dir+'epa_categories.xml').getroot()
+e=ET.parse(raw_dir/'epa_categories.xml').getroot()
 
 # Map children to parents in a dictionary, so that upper elements of the tree can 
 # be called by lower elements. This is a many to one mapping. 
@@ -50,7 +47,13 @@ prop_dict={
 
 
 def define_smart_match(smart):
-    """A function that takes in a SMART pattern and outputs a function that identifies whether an input chemical contains that pattern"""
+    """A function that takes in a SMART pattern and outputs a function that identifies whether an input chemical contains that pattern
+    Args:
+        smart (str): SMARTS pattern as str
+    Returns:
+        smart_match: Boolean result if SMARTS is a match
+    """
+    
     pattern=Chem.MolFromSmarts(smart)
     if not pattern:
         return None
@@ -188,7 +191,7 @@ class Query:
     
     def print_tree(self,x,tabs=0, printer = True):
         """ Given a Class instance and chemical, output the results of applying each query on the chemical
-        to the console. For queries with subqueries, the subqueries will be disaplayed below the query in 
+        to the console. For queries with subqueries, the subqueries will be displayed below the query in 
         indented lists. Can also be used to view query conditions without a chemical input."""
         qinfo=(self.id,self.type)
         if self.type=='b:StructureQuery':
@@ -681,7 +684,7 @@ all_tests['Substituted Triazines (Chronic toxicity)']=humanBuiltQuery(create_tes
 def convert_ppb(x): #OPERA results stored as mol/L
     ws=x['ws']
     mol_weight=x['mol_weight']
-    return ws*mol_weight*10**6
+    return ws*mol_weight*10**3 #Based on what the Toolbox has done - seems that the OECD Toolbox xl has implemented WSs in units of mg/L. OPERA predictions are in log10 mol/L so the conversion needs to be solubility in units of mol/L * MW * 1000
 
 #Triarylmethane Pigments/Dyes with Non-solubilizing Groups
 def create_test():
