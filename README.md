@@ -27,7 +27,7 @@ The classification methods used in this set use DSSTOX_SID, Log Kow, Molecular W
 - Molecular Weight: 'mol_weight'
 - RDKit.Mol: 'mol'
 - SMILES: 'smiles'
-- Water Solubility: 'ws', *If using predictions from OPERA, these are provided in units as mol/L but the category definitions as implemented in the Toolbox rely on units of mg/L (unlike the original category definitions which used units of ug/L). Current code will assign categories based on mg/L inputs.
+- Water Solubility: 'ws', *If using predictions from OPERA, these are provided in units as mol/L but the category definitions as implemented in the Toolbox rely on units of mg/L (unlike the original category definitions which used units of ug/L). Current code will assign categories based on mol/L inputs.
 
 Chemicals can be provided as a DataFrame containing these columns, a dictionary containing each of these keys, or a list of dictionaries, each with all of the required keys. In addition, there are built-in error and input checks to warn users if the input type is incompatible with the desired function. 
 
