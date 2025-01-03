@@ -366,10 +366,14 @@ def create_test():
         if m.findall(smiles):
             return False
         rgroup_indexes=[i for i,atom in enumerate(smiles) if atom=='C']
+        if len(rgroup_indexes) == 0:
+            extrema_check = [0]
+        else:
+            extrema_check = rgroup_indexes
         return (mol.HasSubstructMatch(sulfate) or mol.HasSubstructMatch(sulfonate)\
         or mol.HasSubstructMatch(phosphate) or mol.HasSubstructMatch(carboxylic)\
         or mol.HasSubstructMatch(silicic))\
-        and sorted(rgroup_indexes)==range(min(rgroup_indexes),max(rgroup_indexes)+1) #Tests for straight alkyl chains
+        and sorted(rgroup_indexes)==range(min(extrema_check),max(extrema_check)+1) #Tests for straight alkyl chains
     return test
 ani_words = {'qtype': 'LogicalQuery', 'logic':'And', \
              'subqueries': [{'qtype':'b:StructureQuery', 'smart':'Straight Alkyl Chain - Cs are adjacent in SMILES'}, \
