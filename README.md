@@ -303,7 +303,6 @@ Now, the variable the_test_dictionary stores strings representing the tests requ
 - Azides (Acute toxicity)
 - Azides (Chronic toxicity)
 - Benzotriazole-hindered phenols
-- *Benzotriazoles*
 - Benzotriazoles (Acute toxicity)
 - Benzotriazoles (Chronic toxicity)
 - Boron Compounds

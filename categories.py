@@ -351,39 +351,79 @@ ami_words = {'qtype': 'b:StructureQuery', 'smart':'N=NC1=NC2=C(S1)C=CC=C2'}
 all_tests['Aminobenzothiazole Azo Dyes']=humanBuiltQuery(create_test(), ami_words)
 
 #Anionic Surfactants
-def create_test():
-    sulfate=Chem.MolFromSmarts('COS(=O)(=O)[OH,O-]')
-    sulfonate=Chem.MolFromSmarts('CS(=O)(=O)[OH,O-]')
-    phosphate=Chem.MolFromSmarts('COP([OH1])([OH1])=O')
-    carboxylic=Chem.MolFromSmarts('[CX3;!$(Cc)](=O)[OX2H1]')
-    silicic=Chem.MolFromSmarts('[Si][OX2H]')
+def has_branching_with_carbon(mol):
+    for atom in mol.GetAtoms():
+        if atom.GetSymbol() == "C" and atom.GetDegree() > 2:
+            neighbors = [nbr.GetSymbol() for nbr in atom.GetNeighbors()]
+            # print(f"Carbon index {atom.GetIdx()} degree: {atom.GetDegree()}, neighbors: {neighbors}")
+            # Only count branching caused by carbon neighbors
+            carbon_neighbors = [n for n in neighbors if n == "C"]
+            if len(carbon_neighbors) > 2:
+                # print(f"Branching detected at carbon index {atom.GetIdx()} with neighbors {neighbors}")
+                return True
+    return False
+from rdkit.Chem import rdmolops
+
+def is_straight_alkyl_chain(mol):
+    carbons = [atom.GetIdx() for atom in mol.GetAtoms() if atom.GetSymbol() == "C"]
+    for idx in carbons:
+        atom = mol.GetAtomWithIdx(idx)
+        # Ensure no carbon has more than 2 non-functional group bonds
+        if atom.GetDegree() > 2:
+            neighbors = [nbr.GetSymbol() for nbr in atom.GetNeighbors()]
+            if not all(n in {"O", "S"} for n in neighbors if n != "C"):
+                return False
+    return True
+
+def anionic_test():
+    sulfate = Chem.MolFromSmarts('COS(=O)(=O)[OH,O-]')
+    sulfonate = Chem.MolFromSmarts('CS(=O)(=O)[OH,O-]')
+    phosphate = Chem.MolFromSmarts('COP([OH1])([OH1])=O')
+    carboxylic = Chem.MolFromSmarts('[CX3;!$(Cc)](=O)[OX2H1]')
+    silicic = Chem.MolFromSmarts('[Si][OX2H]')
+    
+    if not all([sulfate, sulfonate, phosphate, carboxylic, silicic]):
+        raise ValueError("One or more SMARTS patterns failed to initialize.")
+    
     def test(x):
-        mol=x['mol']
-        smiles=x['smiles']
-        if set(smiles)-set(['C','c','O','P','S','i','[',']','(',')','=']):
+        mol = x['mol']
+        
+        # Character filtering
+        if mol is None:
             return False
-        m=re.compile(r'\(.?C.?\)')
-        if m.findall(smiles):
+        
+        # Exclude branching with carbon atoms
+        
+        if has_branching_with_carbon(mol):
             return False
-        rgroup_indexes=[i for i,atom in enumerate(smiles) if atom=='C']
-        if len(rgroup_indexes) == 0:
-            extrema_check = [0]
-        else:
-            extrema_check = rgroup_indexes
-        return (mol.HasSubstructMatch(sulfate) or mol.HasSubstructMatch(sulfonate)\
-        or mol.HasSubstructMatch(phosphate) or mol.HasSubstructMatch(carboxylic)\
-        or mol.HasSubstructMatch(silicic))\
-        and sorted(rgroup_indexes)==range(min(extrema_check),max(extrema_check)+1) #Tests for straight alkyl chains
+        
+        # Ensure a straight alkyl chain
+        
+        if not is_straight_alkyl_chain(mol):
+            return False
+        
+        # Substructure matching
+        return (
+            mol.HasSubstructMatch(sulfate) or 
+            mol.HasSubstructMatch(sulfonate) or 
+            mol.HasSubstructMatch(phosphate) or 
+            mol.HasSubstructMatch(carboxylic) or 
+            mol.HasSubstructMatch(silicic)
+        )
+    
     return test
+
+
 ani_words = {'qtype': 'LogicalQuery', 'logic':'And', \
              'subqueries': [{'qtype':'b:StructureQuery', 'smart':'Straight Alkyl Chain - Cs are adjacent in SMILES'}, \
+                            {'qtype':'b:StructureQuery', 'smart':'Has branching with Carbon'},\
                             {'qtype':'LogicalQuery', 'logic':'Or', \
                              'subqueries': [{'qtype':'b:StructureQuery', 'smart':'COS(=O)(=O)[OH,O-]'},\
                                             {'qtype':'b:StructureQuery', 'smart':'CS(=O)(=O)[OH,O-]'}, \
                                             {'qtype':'b:StructureQuery', 'smart':'COP([OH1])([OH1])=O'}, \
                                             {'qtype':'b:StructureQuery', 'smart':'[CX3;!$(Cc)](=O)[OX2H1]'}, \
                                             {'qtype':'b:StructureQuery', 'smart':'[Si][OX2H]'}]}]}
-all_tests['Anionic Surfactants']=humanBuiltQuery(create_test(), ani_words)
+all_tests['Anionic Surfactants']=humanBuiltQuery(anionic_test(), ani_words)
 
 # #Benzotriazoles
 # Original code has this test twice, but this one would be overwritten by the later copy
@@ -775,16 +815,16 @@ alde_words2 = {'qtype':'LogicalQuery', 'logic':'And', \
                                            {'qtype':'b:StructureQuery', 'smart':'[CH1](=[O])[C,c]'}]}]}
 all_tests['Aldehydes (Chronic toxicity)']=humanBuiltQuery(create_test(), alde_words2)
 
-#Benzotriazoles
-#Not a valid smarts from toolbox
-def create_test():
-    benzotriazole=Chem.MolFromSmarts('N1N=NC2=C1C=CC=C2')
-    def test(x):
-        mol=x['mol']
-        return mol.HasSubstructMatch(benzotriazole)
-    return test
-benzo_words = {'qtype': 'b:StructureQuery', 'smart':'N1N=NC2=C1C=CC=C2'}
-all_tests['Benzotriazoles']=humanBuiltQuery(create_test(), benzo_words)
+# #Benzotriazoles
+# #Not a valid smarts from toolbox
+# def create_test():
+#     benzotriazole=Chem.MolFromSmarts('N1N=NC2=C1C=CC=C2')
+#     def test(x):
+#         mol=x['mol']
+#         return mol.HasSubstructMatch(benzotriazole)
+#     return test
+# benzo_words = {'qtype': 'b:StructureQuery', 'smart':'N1N=NC2=C1C=CC=C2'}
+# all_tests['Benzotriazoles']=humanBuiltQuery(create_test(), benzo_words)
 
 #Imides
 #Doesn't work if carbons are part of aromatic
@@ -926,8 +966,8 @@ all_tests['Acrylates/Methacrylates (Chronic toxicity)']=humanBuiltQuery(create_t
 #Epoxides
 #Grace's advice
 def create_test():
-    epoxide=Chem.MolFromSmarts('c1oc1')
-    aziridine=Chem.MolFromSmarts('c1cn1')
+    epoxide=Chem.MolFromSmarts('C1OC1')
+    aziridine=Chem.MolFromSmarts('C1CN1')
     # original SMILES for aziridine: 'c1cn1([CH3,$(CH2CH3)])'
     def test(x):
         mol=x['mol']
