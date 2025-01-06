@@ -977,8 +977,8 @@ def create_test():
 epox_words = {'qtype':'LogicalQuery', 'logic':'And',\
               'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
                             {'qtype':'LogicalQuery', 'logic':'Or',\
-                             'subqueries':[{'qtype':'b:StructureQuery', 'smart':'c1oc1'},\
-                                           {'qtype':'b:StructureQuery', 'smart':'c1cn1'}]}]}
+                             'subqueries':[{'qtype':'b:StructureQuery', 'smart':'C1OC1'},\
+                                           {'qtype':'b:StructureQuery', 'smart':'C1CN1'}]}]}
 all_tests['Epoxides']=humanBuiltQuery(create_test(), epox_words)
 
 
