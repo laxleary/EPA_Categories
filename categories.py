@@ -966,13 +966,11 @@ all_tests['Acrylates/Methacrylates (Chronic toxicity)']=humanBuiltQuery(create_t
 #Epoxides
 #Grace's advice
 def create_test():
-    epoxide=Chem.MolFromSmarts('C1OC1')
-    aziridine=Chem.MolFromSmarts('C1CN1')
-    # original SMILES for aziridine: 'c1cn1([CH3,$(CH2CH3)])'
+    strained_ring =Chem.MolFromSmarts('C1[O,N]C1')
     def test(x):
         mol=x['mol']
         mw=x['mol_weight']
-        return mw<1000 and (mol.HasSubstructMatch(epoxide) or mol.HasSubstructMatch(aziridine))
+        return mw<1000 and (mol.HasSubstructMatch(strained_ring) )
     return test
 epox_words = {'qtype':'LogicalQuery', 'logic':'And',\
               'subqueries':[{'qtype':'b:ParameterQuery', 'prop':'Molecular Weight', 'operand':'LessThan', 'value':1000},\
