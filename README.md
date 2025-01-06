@@ -119,7 +119,10 @@ Now, the variable the_test_dictionary stores strings representing the tests requ
 
 - [**queryAll**](https://github.com/laxleary/EPA_Categories/blob/689642cd346f8ae27deaa3df7723742bb4083f3d/categories.py#L988): Given a set of chemical(s), returns a DataFrame containing one column for chemical DSSTOXSIDs and individual columns for every category included in all_tests. These columns will contain boolean values, thus describing category membership for the chemical set in a fingerprint-like way. 
 
-    - Input: *chemicals*, A DataFrame, Dictionary, or list of Dictionaries of Chemicals and their attributes, including dsstox_sid, smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names to match each of these attribute titles.
+    - Inputs: 
+      - *chemicals*, A DataFrame, Dictionary, or list of Dictionaries of Chemicals and their attributes, including dsstox_sid, smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names to match each of these attribute titles.
+      - *boolean_outputs*, Default value is False. This function will, by default, output category_df with binary values descripbing category membership. If desired, this matrix can instead be output with boolean values by setting boolean_outputs to True. 
+    
     - Output: *category_df*, A DataFrame of chemicals and their category memberships, with an example depicted below:
 
 <div>

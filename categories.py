@@ -994,7 +994,7 @@ def checkForAttributes(x):
         pass
     return None
 
-def queryAll(chemicals):
+def queryAll(chemicals, boolean_outputs = False):
     """This function will query every category for every chemical of interest.
        Inputs:
     - chemicals: A DataFrame, Dictionary, or list of Dictionaries of Chemicals and their attributes, including dsstox_sid, 
@@ -1021,6 +1021,12 @@ def queryAll(chemicals):
                 chem_dict[category].append(-1)
     category_df = pd.DataFrame(chem_dict, columns = chem_dict.keys())
     category_df = category_df.reset_index(drop = True)
+
+    if boolean_outputs == True:
+        pass
+    else:
+        for column in category_df.columns[1:]:
+            category_df[column] = [int(i) for i in category_df[column]]
 
     return category_df
 
