@@ -30,6 +30,9 @@
 <node id="11">
   <data key="d0">Boron Compounds</data>
 </node>
+<node id="15">
+  <data key="d0">Epoxides</data>
+</node>
 <node id="16">
   <data key="d0">Esters (Acute toxicity)</data>
 </node>
@@ -87,11 +90,17 @@
 <node id="41">
   <data key="d0">Dianilines</data>
 </node>
+<node id="42">
+  <data key="d0">Anionic Surfactants</data>
+</node>
 <node id="43">
   <data key="d0">Dithiocarbamates (Acute toxicity)</data>
 </node>
 <node id="45">
   <data key="d0">Polynitroaromatics (Acute toxicity)</data>
+</node>
+<node id="46">
+  <data key="d0">Rosin</data>
 </node>
 <node id="48">
   <data key="d0">Aminobenzothiazole Azo Dyes</data>
@@ -140,6 +149,8 @@
 <edge source="3" target="16"/>
 <edge source="3" target="27"/>
 <edge source="3" target="21"/>
+<edge source="3" target="42"/>
+<edge source="3" target="15"/>
 <edge source="3" target="37"/>
 <edge source="3" target="34"/>
 <edge source="3" target="32"/>
@@ -150,6 +161,7 @@
 <edge source="4" target="16"/>
 <edge source="4" target="7"/>
 <edge source="4" target="11"/>
+<edge source="4" target="42"/>
 <edge source="4" target="23"/>
 <edge source="5" target="16"/>
 <edge source="5" target="21"/>
@@ -178,6 +190,13 @@
 <edge source="10" target="16"/>
 <edge source="10" target="58"/>
 <edge source="11" target="16"/>
+<edge source="15" target="19"/>
+<edge source="15" target="16"/>
+<edge source="15" target="21"/>
+<edge source="15" target="55"/>
+<edge source="15" target="18"/>
+<edge source="15" target="40"/>
+<edge source="15" target="32"/>
 <edge source="16" target="27"/>
 <edge source="16" target="45"/>
 <edge source="16" target="21"/>
@@ -187,6 +206,7 @@
 <edge source="16" target="26"/>
 <edge source="16" target="40"/>
 <edge source="16" target="31"/>
+<edge source="16" target="42"/>
 <edge source="16" target="34"/>
 <edge source="16" target="29"/>
 <edge source="16" target="18"/>
@@ -211,13 +231,16 @@
 <edge source="21" target="58"/>
 <edge source="21" target="49"/>
 <edge source="21" target="26"/>
+<edge source="21" target="42"/>
 <edge source="21" target="34"/>
 <edge source="21" target="63"/>
 <edge source="21" target="50"/>
 <edge source="21" target="25"/>
 <edge source="21" target="23"/>
 <edge source="21" target="65"/>
+<edge source="21" target="46"/>
 <edge source="23" target="65"/>
+<edge source="25" target="42"/>
 <edge source="26" target="27"/>
 <edge source="27" target="31"/>
 <edge source="27" target="53"/>
@@ -229,6 +252,7 @@
 <edge source="27" target="50"/>
 <edge source="27" target="32"/>
 <edge source="27" target="40"/>
+<edge source="31" target="42"/>
 <edge source="31" target="32"/>
 <edge source="31" target="55"/>
 <edge source="31" target="40"/>
@@ -238,6 +262,8 @@
 <edge source="37" target="40"/>
 <edge source="39" target="56"/>
 <edge source="39" target="40"/>
+<edge source="42" target="55"/>
+<edge source="46" target="55"/>
 <edge source="49" target="55"/>
 <edge source="51" target="55"/>
 <edge source="53" target="55"/>

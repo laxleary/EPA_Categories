@@ -7,15 +7,10 @@ from datetime import datetime
 from rdkit import Chem
 from pathlib import Path
 
-TOP = Path.cwd().as_posix()
-# Set access variables for all necessary folders. Folder structure should mimic code. 
-raw_dir = Path(TOP) / 'data' /'raw'
-interim_dir = Path(TOP) / 'data' /'interim'
-external_dir = Path(TOP) / 'data' /'external'
-figures_dir = Path(TOP)/ 'reports'/'figures'
+data_path = os.path.join(os.path.dirname(__file__), "data/raw/epa_categories.xml")
 
 # Open the XML file in read mode
-with open(raw_dir / 'epa_categories.xml','r', encoding = 'utf8') as f:
+with open(data_path,'r', encoding = 'utf8') as f:
     xml=f.read()
 
 # Collapse all XML to a single line (for ease of reading?)
@@ -23,7 +18,7 @@ xml=xml.replace('\n','')
 
 # Parse the XML as a tree
 import xml.etree.ElementTree as ET
-e=ET.parse(raw_dir/'epa_categories.xml').getroot()
+e=ET.parse(data_path).getroot()
 
 # Map children to parents in a dictionary, so that upper elements of the tree can 
 # be called by lower elements. This is a many to one mapping. 

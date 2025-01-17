@@ -1,5 +1,12 @@
+#virtual environments and caches
 venv/
+venv2/
 __pycache__
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# Package Builders
+package_builder/build/
+package_builder/epa_ncc.egg-info/
+reports/pyproject.toml
