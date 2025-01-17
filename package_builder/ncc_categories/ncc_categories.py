@@ -1139,7 +1139,7 @@ def printTree(category_title, one_chem = None, printer = True):
         """
     if category_title not in possible_categories:
         print(f"{category_title} is not a valid category")
-    if one_chem:
+    if type(one_chem) != type(None):
         one_chem = normalizeChemicals(one_chem)
         checkForAttributes(one_chem)
         return(all_tests[category_title].print_tree(dict(one_chem.iloc[0]), printer = printer))

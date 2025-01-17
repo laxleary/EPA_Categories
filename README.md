@@ -129,7 +129,7 @@ for key in all_tests.keys():
 ```
 Now, the variable the_test_dictionary stores strings representing the tests required for classifying chemicals into each category, stored by category title.
 
-- [**queryAll**](https://github.com/laxleary/EPA_Categories/blob/689642cd346f8ae27deaa3df7723742bb4083f3d/categories.py#L988): Given a set of chemical(s), returns a DataFrame containing one column for chemical DSSTOXSIDs and individual columns for every category included in all_tests. These columns will contain boolean values, thus describing category membership for the chemical set in a fingerprint-like way. 
+- [**queryAll**](https://github.com/laxleary/EPA_Categories/blob/689642cd346f8ae27deaa3df7723742bb4083f3d/categories.py#L994): Given a set of chemical(s), returns a DataFrame containing one column for chemical DSSTOXSIDs and individual columns for every category included in all_tests. These columns will contain boolean values, thus describing category membership for the chemical set in a fingerprint-like way. 
 
     - Inputs: 
       - *chemicals*, A DataFrame, Dictionary, or list of Dictionaries of Chemicals and their attributes, including dsstox_sid, smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names to match each of these attribute titles.
@@ -291,7 +291,7 @@ Now, the variable the_test_dictionary stores strings representing the tests requ
 <p>5 rows × 67 columns</p>
 </div>
 
-- [**listCategories**](https://github.com/laxleary/EPA_Categories/blob/689642cd346f8ae27deaa3df7723742bb4083f3d/categories.py#L1018): Given an individual chemical, this function outputs a list of all categories to which the chemical belongs. 
+- [**listCategories**](https://github.com/laxleary/EPA_Categories/blob/689642cd346f8ae27deaa3df7723742bb4083f3d/categories.py#L1024): Given an individual chemical, this function outputs a list of all categories to which the chemical belongs. 
 
     - Input: *one_chem*, A DataFrame or Dictionary representing a single chemical and its attributes, including dsstox_sid, smiles, logp, ws, mol_weight, and RDKIT MolfromSmiles (labelled as 'mol'). There must be keys or column names to match each of these attribute titles. 
     - Output: *all_cats*, A list of all categories to which the chemical belongs according to the included tests. 
