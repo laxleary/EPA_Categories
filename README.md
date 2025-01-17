@@ -1,10 +1,14 @@
 # EPA Categories
 
-The files in this repository can be used to identify membership in the EPA New Chemical Categories (NCC) for chemicals of interest using the NCC profiler as implemented in the OECD QSAR Toolbox v4.6. This README outlines how to use the functions provided herein, including how to set up a repository for use, format inputs, and apply functions.
+The files in this repository can be used to identify membership in the EPA New Chemical Categories (NCC) for chemicals of interest using the NCC profiler as implemented in the OECD QSAR Toolbox v4.6. This README outlines how to use the functions provided herein, including how to set up a repository for use, format inputs, and apply functions. 
 
 ## Repository Setup
 
-In order to use this code in an independent repository, the file and folder structure must be preserved for  [data/raw/epa_categories.xml](data/raw/epa_categories.xml) and [categories.py](categories.py). Thus, there should be a folder with the following contents:
+The package ncc_categories can be used as a standalone module or installed in a Python instance or virtual environment. 
+
+### Stand-alone Module
+
+In order to use this code as a standalone module, the file and folder structure must be preserved for  [data/raw/epa_categories.xml](data/raw/epa_categories.xml) and [categories.py](categories.py). Thus, there should be a folder with the following contents:
 
         ├── categories.py
         ├──data
@@ -17,6 +21,14 @@ Running the following in any script or notebook located in the same folder as ca
 from categories import queryAll, listCategories, singleQuery, printTree
 ```
 For files in folders other than that containing categories.py, the user need only adjust the file path in front of 'categories' in the above code. 
+
+### Local Installation
+
+To install the package in a Python instance or virtual environment, you will need to save the folder [package_builder/](package_builder/) and its contents on your machine. Then, you will run the following code with the desired instance or virtual environment activated:
+
+``` 
+pip install <path/to/package_builder>/package_builder/.
+```
 
 ## Input Format
 
@@ -83,7 +95,7 @@ test_chems_df['mols'] = [Chem.MolFromSmiles(smile) for smile in test_chems_df['s
 ```
 
 ## User-Focused Functions
-Note: catgeories.py includes code that parses the original QSAR Toolbox XML in order to create many of the tests for the EPA categories. To this end, there are many functions defined in the script that are not particularly meant for general use, and instead allow for parsing of XML and organisation of tests and queries. This section will focus on the functions that allow users to match chemicals to categories and to obtain information about those categories.
+Note: catgeories.py and ncc_categories.py include code that parses the original QSAR Toolbox XML in order to create many of the tests for the EPA categories. To this end, there are many functions defined in the script that are not particularly meant for general use, and instead allow for parsing of XML and organisation of tests and queries. This section will focus on the functions that allow users to match chemicals to categories and to obtain information about those categories.
 
 ### Code Structure Information
 categories.py defines a Query class. Instances of the Query class correspond to the different available categories. These instances are stored by category key in the dictionary all_tests. Each instance has a .query attribute, which can be applied to an individual chemical in order to obtain a boolean value for whether the given chemical belongs in the specified category. Most queries were built directly from the parsed XML, but some categories required hard-coding of the query tests due to corrupted SMARTS in the XML. These hard-coded categories are italicised in the category list below. 
