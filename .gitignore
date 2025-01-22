@@ -10,3 +10,7 @@ __pycache__
 package_builder/build/
 package_builder/epa_ncc.egg-info/
 reports/pyproject.toml
+
+# Pickle files (too large)
+data/interim/external/best_model_rf.pickle
+data/interim/external/domain.pickle
