@@ -202,7 +202,7 @@ Summary: This seems to be a category that could be labelled "Nitriles", where th
 ## 17: 
 - 1 member, 1 uncategorized
 
-Summary: Cluster 17 contains a single chemical that is not sorted into any ARN or NCC. Because this chemical has no neighbors. It is a chemical with only 4 ToxPrints: 'tp_fp3', 'tp_fp436', 'tp_fp437', 'tp_fp438', 'tp_fp439', which indicate that it has a metalloid and carbon chain of length 4. This is unlikely to be a helpful cluster in any way, since there is not enough data to create generalizations for what else should be placed in the cluster. 
+Summary: Cluster 17 contains a single chemical that is not sorted into any ARN or NCC. Because this chemical has no neighbors, no generalizations can be drawn. It is a chemical with only 4 ToxPrints: 'tp_fp3', 'tp_fp436', 'tp_fp437', 'tp_fp438', 'tp_fp439', which indicate that it has a metalloid and carbon chain of length 4. This is unlikely to be a helpful cluster in any way, since there is not enough data to create generalizations for what else should be placed in the cluster. 
 
 ## 18*: 
 - 142 members, 9 uncategorized - most chemicals are sorted by both ARN and NCC, with ARN again covering about 80% of chemicals and NCC covering about 70%.
@@ -292,4 +292,146 @@ Summary: This is a slightly strange cluster, as it appears to bridge between sev
 Summary: This is a robust cluster in terms of structural definition and t-SNE localization. It is encouraging that the NCC overlap is with a specific cluster, as that could indicate that this is essentially the extension/generalization of an existing NCC. Due to the small sample size, I believe we should avoid over-defining the structural requirements for this group: i.e., the ToxPrint backbone is more likely meaningful than the features in only 90% of the group, etc. 
 
 ## 24
+- 125 members, 20 uncategorized - ARN accounts for about 70% of chemicals, NCC coverage for about 55%. 
+- About 15% of chemicals are in Esters (Acute toxicity), with 23% in Esters (chronic toxicity). The rest of those categorized by NCC arescattered through 16 other NCCs, with about 40% also in NO. 
+- Esters from linear saturated d... account for slightly more than 20% of ARN classifications, Esters from branched or non-ar... for about 8%, and then there are 23 additional ARNs with small representation. 
+- t-SNE is extremely localized. There are two true outlier chemicals, and all others are in the same region with only slight noise or overlap with other clusters. 
+- There is a 7-print ToxPrint backbone, 33 @ 99.5%, and none of those are in 80%-99% of the population. The Toxprint backbone is: 
+    - 'tp_fp421', chain:alkaneBranch_isopropyl_C3
+    - 'tp_fp424', chain:alkaneBranch_isohexyl_pentyl_3-methyl
+    - 'tp_fp426', chain:alkaneBranch_isooctyl_hexyl_2-ethyl
+    - 'tp_fp436', chain:alkaneLinear_ethyl_C2(H_gt_1)
+    - 'tp_fp437', chain:alkaneLinear_ethyl_C2_(connect_noZ_CN=4)
+    - 'tp_fp438', chain:alkaneLinear_propyl_C3
+    - 'tp_fp439', chain:alkaneLinear_butyl_C4
 
+Summary: This cluster shows promise with its long ToxPrint backbone and localized t-SNE. The ToxPrints in this cluster are very common in other clusters, so we should ensure that this structural definition is actually unique to this cluster before implementing it. This seems to be a cluster of Esters based on the NCC and ARN trends. Based on the ToxPrint 425 and 427 in the backbone, these are all Alkyl Esters (though none of the ToxPrints require a hydroxyl - there does not appear to be a ToxPrint for this)?
+
+## 25
+- 89 members, 23 uncategorized - ARN categorizes about 60% of chemicals and NCC 45%. 
+- Most NCC classifications are Anilines (Acute toxicity), but this is only about 8%. Phenols (Acute toxicity) come in at about 6%, and the rest are scattered through 8 more categroies with minimal representation. NOs account for about 20% of chemicals. 
+- chlorinated aromatic hydrocarb... account for about 20% of chemicals, with aralkylamines at about 15%, and another 12 ARNs with small representation in the cluster
+-t-SNE is weakly localized. There is a small primary cluster, but there are more than 19 chemicals not in that main cluster. There does not appear to be a relationship between whether those are the categorized chemicals or not. 
+- There is no ToxPrint backbone, but there are only 16 @ 99.5% and 4 of those appear in more than 80% of the cluster. These are 'tp_fp474' - chain:aromaticAlkane_Ph-C1_acyclic_connect_H_gt_1, 'tp_fp475' - chain:aromaticAlkane_Ph-C1_acyclic_connect_noDblBd, 'tp_fp476' - chain:aromaticAlkane_Ph-C1_acyclic_generic, and 'tp_fp585' -ring: aromatic_benzene
+
+Summary: The t-SNE outliers and the fact that the rings and connectors are in most, but not all, of the chemicals begs the question of why chemicals without these features appear in the cluster. This is worth delving into further to see whether maybe some chemicals should be excluded from the cluster in order to form a structural definition, or whether there is an as-yet unseen pattern here. 
+
+## 26
+- 103 members, 25 uncategorized - ARN 55%, NCC 55%
+- NOs classify 30% of NCC, Phenols (Acute toxicity) about 12%, Acute Aldehydes, Anilines, and Epoxides all around 5%. Split between 6 additional NCCs. 
+- 35% of chemicals in Brominated cycloalkanes, alcoh... Next largest ARN is Isophthalates, Terephthalates... with less than 6% of chemicals and chlorinated aromatic hydrocarb.. with a similar number. Glycidly ethers and ester and aromatic ethers are also represented at around 4%. 
+-t-SNE is loosely localized. Cluster is interspersed thoroughly with non-cluster chemicals in all locations, but chemicals are mostly in the same quadrant of the plot, with increased density at certain locations. Uncategorized chemicals are not in the most dense areas of this arrangement, but are also not the only outliers. 
+- ToxPrint 302 is in all chemicals: bond:X[any]_halide, 31 @ 99.5%, nd 2 in more than 80% of chemicals: 'tp_fp184' - bond:CX_halide_aromatic-X_generic, 'tp_fp585' - benzene
+
+Summary: Clearly halides are a defining feature of this cluster, though the t-SNE seems to rate it as a poor cluster. There seems to be a basis for a structural backbone for this cluster, with some decetly strong associations with particular ARN and NCCs. This cluster shows promise for adding a potential net between ARNs and NCCs for categorizing chemicals just outside their coverage. 
+
+## 27 
+- 466 members, 77 uncategorized - both about 33%, ARN only about 25%, NCC only about 20%
+- Nearly 50% fall in NOs, just under 5% fall in Aldehydes (Acute toxicity) and Alkoxysilanes, rest spread very thinly through 16 other NCCs
+- Spread through more than 25 ARNs, 1,2-ethanediols and their carb... and Simple Lithium Compounds each contain about 12% of chemicals, but the spread is very thin through all the different ARNs involved. 
+- The t-SNE is moderately localized, with most chemicals in the same region and one particular cluster having the most density, including many of the uncategorized chemicals. However, there are many outliers and chemicals not in this region, including two distinct clusters of mostly uncategorized chemicals.
+- There are no ToxPrints in every member of the sample, there are 64 @ 99.5%, and only one of these is in 80% or more of the chemicals: 'tp_fp421' - chain:alkaneBranch_isopropyl_C3
+
+Summary: This is one of the first bad-quality but large clusters observed. There is not much basis for a structural definition, the cluster does not closely mimic any ARN or NCC to form an expansion, but there are many members and a significant number of uncategorized chemicals. It might be best to dig deeper on this cluster for more information or strutural basis, as well as whether maybe there is a more robust structural definition for the main cluster seen in the t-SNE, since that does account for most of the uncategorized chemicals. 
+
+## 28
+- 213 members, 94 uncategorized - ARN categorizes about 48% and NCC about 25%
+- Even NOs only account for about 15% of chemicals, but membership is less than 5% across another 12 categories, with Anilines (Acute toxicity) in the marginal lead
+- chlorinated aromatic hydrocarb... account for about 13% of chemicals, with aralkylamines around 10% and then spread through 18 other ARNs 
+- t-SNE is moderate-to-strongly localized, with two main clusters in the same region, though one is almost entirely made up of the uncategorized chemicals. An investigation into what differentiates these two clusters could be informative. There are also some mini outlier clusters largely composed of these uncategorized chemicals. 
+- ToxPrint 586 (Benzene) is the only ToxPrint backbone, there are 58 @ 99.5%, and none of these are in 80% or more of the chemicals. 
+
+Summary: This cluster is clearly filling gaps left by ARN and NCC, but the meaning is quite deeply buried, since ToxPrint 586 is a very common one. Splitting the two main clusters of the t-SNE apart and looking for the structural differentiation between them might be one approach for deepening the structural justification.
+
+**This is where the Neutral Organics Error was fixed**
+
+## 29
+- 118 members, 4 uncategorized - ARN accounts for about 75%, NCC for about 20%
+- Only Boron compounds, Alkoxysilanes (12%), Anionic Surfactants, and NOs are featured. 
+- 70% of chemicals are in primary aliphatic diamines and... , with only 4 other ARNs represented with minimal coverage
+- t-SNE is moderately-to-strongly localized, with most members clustered together in the same area, though by appearance forming the borders of other visual t-SNE clusters. Outliers are rare, though 3/4 the uncategorized chemicals are in these outliers. 
+- There is a single-ToxPrint backbone of 'tp_fp93' - bond:CN_amine_aliphatic_generic. This appears in multiple previously-seen clusters, so it is not unique enough on its own to define a cluster. There are 27 @ 99.5% and 3 of these are present in 80% or more of the cluster: 'tp_fp99' - bond:CN_amine_pri-NH2_alkyl, 'tp_fp101' - bond:CN_amine_pri-NH2_generic, 'tp_fp436' - chain:alkaneLinear_ethyl_C2(H_gt_1)
+
+Summary: This cluster mostly seems to build off of the existing ARN, so investigating whether there is a reasonable definition for the structure of that ARN may also lead to a meaningful structural definition of this cluster. Detracting from the potential meaningfulness of this cluster, there are very few uncategorized chemicals and those that are uncategorized are in outlier areas of the t-SNE. An investigation of how these chemicals got assigned to this cluster may be informative, particularly since there are so few of them. 
+
+## 30
+- 664 members, 198 uncategorized - ARN categorizes about 50%, NCC about 30%
+- Almost all NCCs are in Anilines or Aldehydes, both Acute toxicity, but they are also spread across 13 NCCs
+- About 25% in chlorinated aromatic hydrocarbons ARN with 13 more ARNs under 5% representation
+- t-SNE is moderately localized. All chemicals are in the same general are, but with a lot of mix with out-of-cluster chemicals. There are some scattered, more distant chemicals and many of the uncategorized chemicals seem to be clustered in the same general region. 
+- There is no ToxPrint backbone, 125 @ 99.5% and 0 ToxPrints in 80% or more of the chemicals. 
+
+Summary: This is a critical cluster due to its size and number of uncategorized chemicals. However, there is a lack of a basic structural definition or even the ghost of one based on the ToxPrint process I've use so far. It would take additional delving here to get at one. The strongest NCC and ARN overlaps could potentially be used to get at this: what do Anilines, Aldehydes, and chlorinated aromatic hyrdrocarbons have in common, if anything? The t-SNE region covered is quite wide, so the definition for this cluster may end up having to be relatively broad, as I suspect will be the case for some of the very large clusters. 
+
+## 31
+- 209 members, 5 uncategorized - both cover 80% of chemicals, with ARN around 10% more and NCC around 5% more
+- 85% in Esters (Acute toxicity), 75% in NO, and the rest marginally spread across 10 other NCCs
+- 60 % Esters from branched or non-aro..., 20% alpha-chloro aliphatic carboxy..., and the rest spread through 9 or more ARNs at low frequency
+- Strongly localized t-SNE with a very distinct, dense cluster. There are a scattering of outliers. 
+- No ToxPrint backbone, 46 @ 99.5%, and 2 are in 80% or more of the chemicals: 'tp_fp70' - bond:C=O_carbonyl_generic, 'tp_fp436' - chain:alkaneLinear_ethyl_C2(H_gt_1)
+
+Summary: This is another cluster tightly tied to the Esters title, though without the strength of the backbone in cluster 24. It should likely be contrasted with any other Ester clusters in order to determine what differentiates this one, as its actual structural core seems to be relatively weak here. There are not very many uncategorized chemicals in the cluster, which suggests that the cluster might be best defined by just slightly expanding the definition of an existing ARN or NCC. Looking at how the 5 missing chemicals fall outside of the Esters ARNs and NCCs may provide an answer to this. 
+
+## 32
+- 337 members, 59 uncategorized - 65% by ARN only, 5% by NCC only
+- Anionic Surfactants and Aldehydes (Acute toxicity) each account for about 5% of chemicals. NOs apply to about 55% of chemicals. 
+- Polyol amines account for about 22% of chemicals, 1,2-ethanediols and their carb... account for another 20%, and the rest is distributed across about 15 other ARNs. 
+- t-SNE is weakly localized. There are 5 or 6 distinct clusters containing concentrated sets of this cluster, but plenty of chemicals from the cluster aren't in these main clusters either. The uncategorized chemicals are spread all about through the cluster regions, but there is still an overall sense of the cluster having main regions. 
+- There is no ToxPrint backbone, there are 85 @ 99.5% and 3 of those are present in more than 80% of the chemicals: 'tp_fp117'-bond:COH_alcohol_aliphatic_generic, 'tp_fp128'-bond:COH_alcohol_generic, 'tp_fp129'-bond:COH_alcohol_pri-alkyl
+
+Summary: The ToxPrints appearing highly frequently in this cluster are rarer than many others, and could potentially form a good structural basis for the cluster. Looking at these and maybe other common ToxPrints with some kind of logic tree (has either __ or __) could potentially help derive a structural definition for the cluster. The cluster contains many uncategorized members and many members overall, so determining a definition is important. The two primary ARNs are the most likely to privide insight into what such a definition should look like. 
+
+## 33
+- 19 members, 8 uncategorized - all categorized chemicals are covered by NCC, just over 50% are also covered by ARN
+- 37% of chemicals are in Acrylates/Methacrylates and Esters (Chronic toxicity), but 16% are in the Acute toxicity versions of both of these as well. 5% are in Alkoxysilanes
+- All ARN categorizations are in acrylate and methacrylate amines
+- t-SNE is extremely localized, all 19 chemicals are in a tiny, tight cluster. 
+- There is a 19-ToxPrint backbone, 29 @ 99.5%, and :
+    - 'tp_fp146', bond:CX_halide_alkyl-F_perfluoro_butyl
+    - 'tp_fp147', bond:CX_halide_alkyl-F_perfluoro_ethyl
+    - 'tp_fp150', bond:CX_halide_alkyl-F_tetrafluoro_(1_1_1_2-)
+    - 'tp_fp151', bond:CX_halide_alkyl-F_trifluoro_(1_1_1-)
+    - 'tp_fp158', bond:CX_halide_alkyl-X_dihalo_(1_1-)
+    - 'tp_fp159', bond:CX_halide_alkyl-X_dihalo_(1_2-)
+    - 'tp_fp160', bond:CX_halide_alkyl-X_dihalo_(1_3)
+    - 'tp_fp163', bond:CX_halide_alkyl-X_generic
+    - 'tp_fp167', bond:CX_halide_alkyl-X_tetrahalo_(1_1_2_2-)
+    - 'tp_fp168', bond:CX_halide_alkyl-X_trihalo_(1_1_1-)
+    - 'tp_fp169', bond:CX_halide_alkyl-X_trihalo_(1_1_2-)
+    - 'tp_fp170', bond:CX_halide_alkyl-X_trihalo_(1_2_3-)
+    - 'tp_fp191', bond:CX_halide_generic-X_dihalo_(1_2-)
+    - 'tp_fp272', bond:S(=O)N_sulfonamide
+    - 'tp_fp273', bond:S(=O)N_sulfonylamide
+    - 'tp_fp292', bond:S=O_sulfonyl_generic
+    - 'tp_fp295', bond:S~N_generic
+    - 'tp_fp301', bond:X[any]_halide
+    - 'tp_fp436', chain:alkaneLinear_ethyl_C2(H_gt_1)
+
+Summary: This appears to be a specific subset of Acrylates/Methacrylates with a robust and easy structural definition based on the lengthy ToxPrint backbone. This cluster is probably ready to be defined as-is, though paring the ToxPrint backbone might also make it slightly more genralizable. Many of the ToxPrints in the backbone have not been seen in any of the previous clusters either, so they may not even all be needed to isolate this cluster.  
+
+## 34
+- 556 members, 144 uncategorized - 50% categorized by ARN only, just under 25% categorized by NCC with 8% categorized by both. 
+- Almost all NCC categorizations are in Alkoxysilanes but with scattered small representation for 13 other NCCs and 32% in NOs
+- ARN categorization is extremely varied. Simple Lithium compounds are the most common, but with only about 8% of chemicals and more than 20 other ARNs represented as well. 
+- t-SNE is moderate-to-weakly localized. There is a region that the cluster is mostly homed in, but with little density and spread to other regions. The uncategorized chemicals do appear to form a few specific clusters with one another, some in the primary region and others as more outlier clusters. 
+- There is no ToxPrint backbone, 95 @ 99.5%, and the only ToxPrint in 80% or more of the set is 'tp_fp436' - chain:alkaneLinear_ethyl_C2(H_gt_1), which is extremely common. 
+
+Summary: The basic version of the structural definition for this cluster is insufficient, between the lack of backbone and extremely common high-frequency ToxPrint. Such a significant portion of the cluster is uncategorized that this does not seem to be a natural extension of an existing NCC or ARN. A deeper dive into a potential structural or physicochemical explanation for this cluster would absolutely be necessary to give it definition. The cluster is certainly worth working to flesh out, based on its large size and large number of uncategorized chemicals. 
+
+## 35
+- 189 members, 76 uncategorized - 25% categorized by ARN and 45% categorized by NCC
+- 15 NCCs are represented but NOs is *not*. Anilines (Acute toxicity) was about 15%, Polynitroaromatics (Acute toxicity) around 12%, and Phenols (Acute toxicity) about 10%
+- Only 8 ARNs are represented, but nitroalkanes are the most common with only about 9%. 
+- t-SNE is very localized. With very few exceptions, the chemicals all fall in the same, dense region. The uncategorized chemicals form a distinct cluster within this regional cluster as well. This could indicate that exploring whether the uncategorized chemicals have a specific structural backbone of their own could be of interest. 
+- There is a 2-ToxPrint backbone: 'tp_fp195'-bond:N(=O)_nitro_aromatic, 'tp_fp196'-bond:N(=O)_nitro_C. There are 48 @ 99.5% and the only print in more than 80% of chemicals is 586, the Benzene ring ToxPrint. *bears similarity to clusters 4 and 21
+
+Summary: This is an interesting cluster with some basis for a structural definition, though effort should be made to find the distinction between cluster 4 and this cluster. This seems to bridge a gap between different ARNs and NCCs rather than being an extension of any individual category. The cluster is decently-sized, with a significant portion of uncategorized chemicals, and the localization of the uncategorized chemicals on the t-SNE forms another definite point of interest. 
+
+## 36
+- 168 members, 7 uncategorized - ARN categorizes about 90% and NCC 85%
+- 75% Esters (Acute toxicity), 73% NOs, spread among 14 more categories all under 5%
+- Esters from linear saturate d... and Esters from branched or non-aro... account for 33% and 22%, repectively alpha-chloro aliphatic carboxy... is also featured prominently, with smaller representation for 12 other ARNs. 
+- t-SNE is moderately localized, with a cluster containing most of the chemicals but the cluster is fairly loose with many outliers and a decent amount of noise/interspresion with non-cluster chemicals. The core of the cluster does appear to be mostly separate from outside chemicals. 
+- The ToxPrint backbone is just 'tp_fp436' - chain:alkaneLinear_ethyl_C2(H_gt_1), with 24 @ 99.5% and of those, 4 are in 80% or more of the chemicals: 'tp_fp70' - bond:C=O_carbonyl_generic, 'tp_fp437'-chain:alkaneLinear_ethyl_C2_(connect_noZ_CN=4), 'tp_fp438'-chain:alkaneLinear_propyl_C3, 'tp_fp439'-chain:alkaneLinear_butyl_C4. 
+
+Summary: This cluster has decent membership and matches well with ARN and NCC esters mostly, so it could potentially be yet another expansion of the category Esters. However, this cluster has no unique defining features observed yet, as its main ToxPrints are extremely common in similar clusters already seen, and in most clusters seen already in general. It would take further investigation to determine whether this cluster actually adds any interesting information or has any unique structural features, or whether it is just the result of the KMeans algorithm trying to chop up a large block of Esters and ester-like compounds. 
